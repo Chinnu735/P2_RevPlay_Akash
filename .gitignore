@@ -1,0 +1,16 @@
+# Compiled class files
+target/
+
+# IDE files
+.idea/
+*.iml
+
+# OS files
+Thumbs.db
+.DS_Store
+
+# Maven wrapper
+.mvn/
+
+# Log files
+*.log
