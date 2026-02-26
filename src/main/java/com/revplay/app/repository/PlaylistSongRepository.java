@@ -11,6 +11,8 @@ import java.util.List;
 public interface PlaylistSongRepository extends JpaRepository<PlaylistSong, PlaylistSongId> {
     List<PlaylistSong> findByPlaylistIdOrderByOrderIndexAsc(Long playlistId);
 
+    void deleteBySongId(Long songId);
+
     void deleteByPlaylistIdAndSongId(Long playlistId, Long songId);
 
     boolean existsByPlaylistIdAndSongId(Long playlistId, Long songId);

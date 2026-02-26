@@ -17,6 +17,8 @@ public interface FavoriteRepository extends JpaRepository<Favorite, Long> {
 
     boolean existsByUserIdAndSongId(Long userId, Long songId);
 
+    void deleteBySongId(Long songId);
+
     void deleteByUserIdAndSongId(Long userId, Long songId);
 
     // Count total favorites for an artist's songs

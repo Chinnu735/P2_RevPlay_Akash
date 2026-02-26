@@ -1,6 +1,7 @@
 package com.revplay.app.repository;
 
 import com.revplay.app.entity.ListeningHistory;
+import com.revplay.app.entity.Song;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -17,7 +18,9 @@ public interface ListeningHistoryRepository extends JpaRepository<ListeningHisto
     List<ListeningHistory> findBySongId(Long songId);
 
     // Last N songs for a user (paginated)
-    List<ListeningHistory> findByUserIdOrderByPlayedAtDesc(Long userId, Pageable pageable);
+    List<ListeningHistory> findAllByUserIdOrderByPlayedAtDesc(Long userId, Pageable pageable);
+
+    void deleteBySongId(Long songId);
 
     // Clear history for a user
     void deleteByUserId(Long userId);
@@ -46,4 +49,8 @@ public interface ListeningHistoryRepository extends JpaRepository<ListeningHisto
     // Total listening time for a user (sum of song durations)
     @Query("SELECT COUNT(lh) FROM ListeningHistory lh WHERE lh.user.id = :userId")
     long countByUserId(@Param("userId") Long userId);
+
+    // Get trending songs globally
+    @Query("SELECT lh.song FROM ListeningHistory lh WHERE lh.song.isDeleted = 0 GROUP BY lh.song ORDER BY COUNT(lh) DESC")
+    List<Song> findTrendingSongsQuery(Pageable pageable);
 }
