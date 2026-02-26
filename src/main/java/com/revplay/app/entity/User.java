@@ -41,6 +41,12 @@ public class User {
     @Column(name = "profile_picture", length = 500)
     private String profilePicture;
 
+    @Column(name = "security_question", length = 255)
+    private String securityQuestion;
+
+    @Column(name = "security_answer", length = 255)
+    private String securityAnswer;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;

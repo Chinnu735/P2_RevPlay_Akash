@@ -43,6 +43,9 @@ public class Song {
     @Column(name = "release_date")
     private LocalDate releaseDate;
 
+    @Column(name = "cover_image", length = 500)
+    private String coverImage;
+
     @Column(name = "visibility", length = 20)
     private String visibility;
 
