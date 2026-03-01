@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register — RevPlay</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+
+<body>
+
+    <div class="auth-page">
+        <div class="auth-card animate-slide">
+            <div class="auth-logo">
+                <a href="/" class="logo" style="justify-content:center;"><span class="logo-mark"><span
+                            class="eq-bar"></span><span class="eq-bar"></span><span class="eq-bar"></span><span
+                            class="eq-bar"></span></span> RevPlay</a>
+            </div>
+
+            <div class="auth-tabs">
+                <button class="auth-tab active" id="tabUser" onclick="switchTab('user')">Listener</button>
+                <button class="auth-tab" id="tabArtist" onclick="switchTab('artist')">Artist</button>
+            </div>
+
+            <div id="registerError" class="hidden"
+                style="background:rgba(255,111,111,0.06);border:1px solid rgba(255,111,111,0.2);border-radius:var(--radius-sm);padding:0.7rem 0.9rem;margin-bottom:1rem;font-size:0.8rem;color:#ff8888;">
+            </div>
+
+            <!-- User Form -->
+            <form id="userForm" onsubmit="handleRegister(event, 'user')">
+                <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" id="userEmail" class="form-control" placeholder="you@email.com" required>
+                </div>
+                <div class="form-group">
+                    <label>Username</label>
+                    <input type="text" id="userUsername" class="form-control" placeholder="Choose a username" required>
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" id="userPassword" class="form-control" placeholder="Min. 6 characters"
+                        required minlength="6">
+                </div>
+                <div class="form-group">
+                    <label>Security Question</label>
+                    <input type="text" id="userSecurityQuestion" class="form-control"
+                        placeholder="e.g. Your first pet's name" required>
+                </div>
+                <div class="form-group">
+                    <label>Security Answer</label>
+                    <input type="password" id="userSecurityAnswer" class="form-control" placeholder="Answer" required>
+                </div>
+                <button type="submit" class="btn btn-primary" id="userBtn">Create Account</button>
+            </form>
+
+            <!-- Artist Form -->
+            <form id="artistForm" class="hidden" onsubmit="handleRegister(event, 'artist')">
+                <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" id="artistEmail" class="form-control" placeholder="you@email.com" required>
+                </div>
+                <div class="form-group">
+                    <label>Username</label>
+                    <input type="text" id="artistUsername" class="form-control" placeholder="Choose a username"
+                        required>
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" id="artistPassword" class="form-control" placeholder="Min. 6 characters"
+                        required minlength="6">
+                </div>
+                <div class="form-group">
+                    <label>Security Question</label>
+                    <input type="text" id="artistSecurityQuestion" class="form-control"
+                        placeholder="e.g. Your first pet's name" required>
+                </div>
+                <div class="form-group">
+                    <label>Security Answer</label>
+                    <input type="password" id="artistSecurityAnswer" class="form-control" placeholder="Answer" required>
+                </div>
+                <div class="auth-divider">Artist Details</div>
+                <div class="form-group">
+                    <label>Artist / Stage Name</label>
+                    <input type="text" id="artistName" class="form-control" placeholder="Your artist name" required>
+                </div>
+                <div class="form-group">
+                    <label>Instagram (optional)</label>
+                    <input type="url" id="artistInstagram" class="form-control" placeholder="https://instagram.com/…">
+                </div>
+                <div class="form-group">
+                    <label>YouTube (optional)</label>
+                    <input type="url" id="artistYoutube" class="form-control" placeholder="https://youtube.com/…">
+                </div>
+                <button type="submit" class="btn btn-primary" id="artistBtn">Create Artist Account</button>
+            </form>
+
+            <div class="auth-footer">
+                Already have an account? <a href="/login">Sign in</a>
+            </div>
+        </div>
+    </div>
+
+    <script th:src="@{/js/app.js}"></script>
+    <script>
+        if (new URLSearchParams(window.location.search).get('type') === 'artist') switchTab('artist');
+
+        function switchTab(type) {
+            document.getElementById('registerError').classList.add('hidden');
+            document.getElementById('tabUser').classList.toggle('active', type === 'user');
+            document.getElementById('tabArtist').classList.toggle('active', type === 'artist');
+            document.getElementById('userForm').classList.toggle('hidden', type !== 'user');
+            document.getElementById('artistForm').classList.toggle('hidden', type !== 'artist');
+        }
+
+        async function handleRegister(e, type) {
+            e.preventDefault();
+            const errorBox = document.getElementById('registerError');
+            errorBox.classList.add('hidden');
+            let url, body, btn;
+            if (type === 'user') {
+                btn = document.getElementById('userBtn'); url = '/api/auth/register';
+                body = { email: document.getElementById('userEmail').value.trim(), username: document.getElementById('userUsername').value.trim(), password: document.getElementById('userPassword').value, securityQuestion: document.getElementById('userSecurityQuestion').value.trim(), securityAnswer: document.getElementById('userSecurityAnswer').value.trim() };
+            } else {
+                btn = document.getElementById('artistBtn'); url = '/api/auth/register/artist';
+                body = { email: document.getElementById('artistEmail').value.trim(), username: document.getElementById('artistUsername').value.trim(), password: document.getElementById('artistPassword').value, securityQuestion: document.getElementById('artistSecurityQuestion').value.trim(), securityAnswer: document.getElementById('artistSecurityAnswer').value.trim(), artistName: document.getElementById('artistName').value.trim(), instagramLink: document.getElementById('artistInstagram').value.trim() || null, youtubeLink: document.getElementById('artistYoutube').value.trim() || null };
+            }
+            btn.textContent = 'Creating…'; btn.disabled = true;
+            try {
+                const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+                const data = await res.json();
+                if (res.ok) {
+                    const u = data.data || data;
+                    localStorage.setItem('user', JSON.stringify(u));
+                    if (u.token) localStorage.setItem('token', u.token);
+                    window.location.href = type === 'artist' ? '/artist-dashboard' : '/home';
+                }
+                else { errorBox.textContent = data.message || 'Registration failed'; errorBox.classList.remove('hidden'); }
+            } catch { errorBox.textContent = 'Connection error.'; errorBox.classList.remove('hidden'); }
+            btn.textContent = type === 'user' ? 'Create Account' : 'Create Artist Account'; btn.disabled = false;
+        }
+    </script>
+
+</body>
+
+</html>
