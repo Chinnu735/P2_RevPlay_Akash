@@ -248,6 +248,38 @@ h4 {
     font-size: 0.8rem;
     font-weight: 500;
     padding: 0.5rem 0.85rem;
+}
+
+/* ── Universal Search ────────────────────────────────────────── */
+.nav-search {
+    flex: 1;
+    max-width: 400px;
+    margin: 0 2rem;
+    position: relative;
+}
+
+.nav-search input {
+    width: 100%;
+    background: var(--bg-2);
+    border: 1px solid var(--border-1);
+    border-radius: var(--radius-full);
+    padding: 0.5rem 1.25rem;
+    color: var(--text-1);
+    font-size: 0.85rem;
+    transition: all 0.2s var(--ease);
+}
+
+.nav-search input:focus {
+    border-color: var(--accent);
+    background: var(--bg-3);
+    box-shadow: 0 0 0 4px var(--accent-soft);
+}
+
+.nav-links a {
+    color: var(--text-3);
+    font-size: 0.8rem;
+    font-weight: 500;
+    padding: 0.5rem 0.85rem;
     border-radius: var(--radius-xs);
     transition: all 0.2s var(--ease);
     letter-spacing: -0.01em;
@@ -608,57 +640,39 @@ h4 {
 }
 
 /* ── Page Backgrounds ────────────────────────────────────────── */
-/* User pages — warm musical instruments */
-.home-bg {
-    background: url('https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=1920&q=80') center/cover no-repeat fixed;
-    /* dark DJ turntable */
-}
-
-/* vinyl on turntable */
-.browse-bg {
+/* All page backgrounds removed except landing hero */
+.home-bg,
+.browse-bg,
+.profile-bg,
+.dashboard-bg,
+.app-bg {
     background: var(--bg);
 }
 
-/* piano keys */
-.profile-bg {
-    background: url('https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=1920&q=80') center/cover no-repeat fixed;
+/* ── Add to Playlist Button ─────────────────────────────────── */
+.btn-add-playlist {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--bg-3);
+    border: 1px solid var(--border-2);
+    color: var(--text-1);
+    font-size: 1.2rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s var(--ease);
+    line-height: 1;
+    padding: 0;
 }
 
-/* headphones */
-/* Artist pages — studio/production feel */
-.dashboard-bg {
-    background: url('https://images.unsplash.com/photo-1519874179391-3ebc752241dd?w=1920&q=80') center/cover no-repeat fixed;
-}
-
-/* studio mixer close-up */
-/* Shared detail pages — universal music symbol */
-.app-bg {
-    background: url('https://images.unsplash.com/photo-1478737270239-2f02b77fc618?w=1920&q=80') center/cover no-repeat fixed;
-}
-
-/* microphone dark */
-
-.home-bg::before,
-.browse-bg::before,
-.dashboard-bg::before,
-.profile-bg::before,
-.app-bg::before {
-    content: '';
-    position: fixed;
-    inset: 0;
-    background: rgba(6, 6, 6, 0.82);
-    pointer-events: none;
-    z-index: 0;
-}
-
-.home-bg>*,
-.browse-bg>*,
-.dashboard-bg>*,
-.profile-bg>*,
-.app-bg>* {
-    position: relative;
-    z-index: 1;
-    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+.btn-add-playlist:hover {
+    background: var(--accent);
+    color: var(--bg);
+    border-color: var(--accent);
+    transform: scale(1.1);
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -724,7 +738,6 @@ h4 {
 .feature-card:hover {
     border-color: var(--border-3);
     background: var(--bg-2);
-    transform: translateY(-4px);
 }
 
 .feature-card .feature-icon {
@@ -758,7 +771,7 @@ h4 {
     justify-content: center;
     min-height: 100vh;
     padding: 2rem;
-    background: linear-gradient(rgba(4, 4, 4, 0.85), rgba(4, 4, 4, 0.85)), url('https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?q=80&w=2070') center/cover no-repeat;
+    background: var(--bg-1);
     position: relative;
     overflow: hidden;
 }
@@ -1501,53 +1514,6 @@ h4 {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   DROPDOWN
-   ═══════════════════════════════════════════════════════════════ */
-.dropdown {
-    position: relative;
-    display: inline-block;
-}
-
-.dropdown-content {
-    display: none;
-    position: absolute;
-    right: 0;
-    top: 100%;
-    background-color: var(--bg-2);
-    min-width: 140px;
-    box-shadow: var(--shadow);
-    border: 1px solid var(--border-1);
-    border-radius: var(--radius-sm);
-    z-index: 10;
-    overflow: hidden;
-}
-
-.dropdown-content a,
-.dropdown-content button {
-    color: var(--text-1);
-    padding: 10px 14px;
-    text-decoration: none;
-    display: block;
-    font-size: 0.8rem;
-    width: 100%;
-    text-align: left;
-    background: none;
-    border: none;
-    cursor: pointer;
-}
-
-.dropdown-content a:hover,
-.dropdown-content button:hover {
-    background-color: var(--bg-3);
-    color: var(--text-0);
-}
-
-.dropdown:hover .dropdown-content,
-.dropdown:focus-within .dropdown-content {
-    display: block;
-}
-
-/* ═══════════════════════════════════════════════════════════════
    RESPONSIVE
    ═══════════════════════════════════════════════════════════════ */
 @media (max-width: 1024px) {
@@ -1670,80 +1636,5 @@ h4 {
 
     .progress-bar {
         display: none;
-    }
-}
-
-/* ═══════════════════════════════════════════════════════════════
-   QUEUE PANEL
-   ═══════════════════════════════════════════════════════════════ */
-.queue-panel {
-    position: fixed;
-    bottom: var(--player-h);
-    right: 0;
-    width: 340px;
-    max-height: 50vh;
-    background: rgba(10, 10, 10, 0.96);
-    backdrop-filter: blur(24px) saturate(180%);
-    -webkit-backdrop-filter: blur(24px) saturate(180%);
-    border: 1px solid var(--border-1);
-    border-bottom: none;
-    border-radius: var(--radius) var(--radius) 0 0;
-    z-index: 99;
-    display: flex;
-    flex-direction: column;
-    box-shadow: var(--shadow-lg);
-    animation: slideUp 0.25s var(--ease);
-}
-
-.queue-panel-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 1rem 1.25rem 0.75rem;
-    border-bottom: 1px solid var(--border-1);
-    flex-shrink: 0;
-}
-
-.queue-list {
-    overflow-y: auto;
-    flex: 1;
-    padding: 0.5rem 0;
-}
-
-.queue-item {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.5rem 1.25rem;
-    transition: background 0.15s var(--ease);
-}
-
-.queue-item:hover {
-    background: var(--bg-2);
-}
-
-.queue-item-active {
-    background: var(--accent-dim);
-}
-
-.queue-item-active:hover {
-    background: var(--accent-dim);
-}
-
-/* Volume slider hover */
-.volume-slider:hover {
-    height: 5px;
-}
-
-.volume-slider {
-    transition: height 0.1s var(--ease);
-}
-
-@media (max-width: 768px) {
-    .queue-panel {
-        width: 100%;
-        left: 0;
-        right: 0;
-        border-radius: var(--radius) var(--radius) 0 0;
     }
 }
