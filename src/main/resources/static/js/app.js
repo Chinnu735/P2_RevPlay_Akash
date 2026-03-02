@@ -29,6 +29,16 @@ document.addEventListener('DOMContentLoaded', () => {
         dashLink.style.display = 'none';
     }
 
+    // Set navbar avatar — profile image or first letter of username
+    const navAvatar = document.getElementById('userAvatar');
+    if (navAvatar) {
+        if (user.profilePicture) {
+            navAvatar.innerHTML = `<img src="${user.profilePicture}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
+        } else {
+            navAvatar.textContent = (user.displayName || user.username || 'U').charAt(0).toUpperCase();
+        }
+    }
+
     if (user.role === 'artist') {
         const avatar = document.getElementById('userAvatar');
         if (avatar && avatar.parentElement && !document.getElementById('navArtistBadge')) {
@@ -42,6 +52,9 @@ document.addEventListener('DOMContentLoaded', () => {
             avatar.parentElement.insertBefore(badge, avatar);
         }
     }
+
+    // Restore music playback from previous page
+    restorePlayback();
 });
 
 /* ── API Helper ───────────────────────────────────────────────── */
@@ -187,7 +200,92 @@ let playlistIndex = -1;
 let isShuffle = false;
 let repeatMode = 0; // 0 = off, 1 = repeat all, 2 = repeat one
 
+// Save playback state to localStorage (called on beforeunload and periodically)
+function savePlaybackState() {
+    if (!currentSongId || !audio.src) {
+        localStorage.removeItem('rp_playback');
+        return;
+    }
+    const currentSong = playlist.find(s => s.id === currentSongId) || {};
+    localStorage.setItem('rp_playback', JSON.stringify({
+        songId: currentSongId,
+        title: currentSong.title || '',
+        artistName: currentSong.artistName || '',
+        audioUrl: currentSong.audioUrl || audio.src,
+        coverImage: currentSong.coverImage || '',
+        currentTime: audio.currentTime || 0,
+        volume: audio.volume,
+        wasPlaying: isPlaying,
+        playlist: playlist.slice(0, 50), // cap to avoid quota
+        playlistIndex: playlistIndex
+    }));
+}
+
+// Restore playback from localStorage on page load
+function restorePlayback() {
+    try {
+        const saved = JSON.parse(localStorage.getItem('rp_playback'));
+        if (!saved || !saved.audioUrl) return;
+
+        const playerBar = document.getElementById('playerBar');
+        if (!playerBar) return;
+
+        // Restore state
+        currentSongId = saved.songId;
+        if (saved.playlist && saved.playlist.length) {
+            playlist = saved.playlist;
+            originalPlaylist = [...saved.playlist];
+            playlistIndex = saved.playlistIndex || 0;
+        }
+
+        // Restore audio
+        audio.src = saved.audioUrl;
+        audio.volume = saved.volume || 0.7;
+        audio.currentTime = saved.currentTime || 0;
+
+        // Show player bar
+        playerBar.style.display = 'flex';
+        document.getElementById('playerTitle').textContent = saved.title || 'Unknown';
+        document.getElementById('playerArtist').textContent = saved.artistName || '';
+        const thumb = document.getElementById('playerThumb');
+        if (thumb) {
+            thumb.innerHTML = saved.coverImage ? `<img src="${saved.coverImage}" style="width:100%;height:100%;object-fit:cover;border-radius:var(--radius-xs);">` : '🎵';
+        }
+
+        // Update volume UI
+        const volFill = document.querySelector('.volume-fill');
+        if (volFill) volFill.style.width = ((saved.volume || 0.7) * 100) + '%';
+
+        // Auto-resume if was playing
+        if (saved.wasPlaying) {
+            audio.play().then(() => {
+                isPlaying = true;
+                updatePlayButton();
+            }).catch(() => {
+                // Autoplay blocked by browser — show paused state
+                isPlaying = false;
+                updatePlayButton();
+            });
+        } else {
+            isPlaying = false;
+            updatePlayButton();
+        }
+
+        checkFavoriteStatus(saved.songId);
+    } catch (e) {
+        console.error('Failed to restore playback:', e);
+    }
+}
+
+// Save state before page unload
+window.addEventListener('beforeunload', savePlaybackState);
+
 function updatePlaylistFromDOM(currentSongId) {
+    // Don't rebuild playlist if music is already playing (search results can disrupt)
+    if (isPlaying && playlist.length > 0 && playlist.some(s => s.id === currentSongId)) {
+        playlistIndex = playlist.findIndex(s => s.id === currentSongId);
+        return true;
+    }
     const rows = document.querySelectorAll('[onclick^="playSong("]');
     if (rows.length === 0) return false;
 
@@ -196,7 +294,7 @@ function updatePlaylistFromDOM(currentSongId) {
     let seenIDs = new Set();
 
     rows.forEach((row) => {
-        const match = row.getAttribute('onclick').match(/playSong\((\d+),\s*'([^']*)',\s*'([^']*)'/);
+        const match = row.getAttribute('onclick').match(/playSong\((\d+),\s*'([^']*)',\s*'([^']*)'/)
         if (match) {
             const id = parseInt(match[1]);
             const title = match[2].replace(/\\'/g, "'");
@@ -320,6 +418,47 @@ function updatePlayButton() {
     if (btn) btn.textContent = isPlaying ? '⏸' : '▶';
 }
 
+// Seek — click on progress bar to jump to position
+function seek(e) {
+    if (!audio.duration) return;
+    const track = e.currentTarget;
+    const rect = track.getBoundingClientRect();
+    const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    audio.currentTime = pct * audio.duration;
+}
+
+// Queue UI
+function showQueue() {
+    const modal = document.getElementById('queueModal');
+    if (!modal) return;
+    const list = document.getElementById('queueList');
+
+    if (playlist.length === 0) {
+        list.innerHTML = '<div class="empty-state"><div class="empty-icon">🎵</div><p>Queue is empty. Play a song first.</p></div>';
+    } else {
+        list.innerHTML = playlist.map((s, i) => `
+            <div onclick="playFromQueue(${i})" style="display:flex;align-items:center;gap:0.75rem;padding:0.65rem 0.75rem;cursor:pointer;border-radius:var(--radius-sm);transition:background 0.15s;${i === playlistIndex ? 'background:var(--accent-dim);' : ''}"
+                 onmouseenter="this.style.background='var(--bg-3)'" onmouseleave="this.style.background='${i === playlistIndex ? 'var(--accent-dim)' : ''}'">
+                <span style="width:24px;text-align:center;font-size:0.75rem;color:${i === playlistIndex ? 'var(--accent)' : 'var(--text-4)'};">${i === playlistIndex ? '▶' : (i + 1)}</span>
+                <div style="flex:1;min-width:0;">
+                    <div style="font-size:0.85rem;font-weight:${i === playlistIndex ? '600' : '400'};color:${i === playlistIndex ? 'var(--accent)' : 'var(--text-1)'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${s.title || 'Unknown'}</div>
+                    <div style="font-size:0.7rem;color:var(--text-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${s.artistName || ''}</div>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    showModal('queueModal');
+}
+
+function playFromQueue(index) {
+    if (index < 0 || index >= playlist.length) return;
+    playlistIndex = index;
+    const song = playlist[index];
+    hideModal('queueModal');
+    playSong(song.id, song.title, song.artistName);
+}
+
 function prevSong() {
     if (playlist.length === 0) return;
     if (audio.currentTime > 3) {
@@ -413,8 +552,7 @@ async function checkFavoriteStatus(songId) {
     }
 
     try {
-        const favs = await api(`/api/favorites/user/${user.userId}`);
-        const isFav = favs.some(f => f.songId === songId);
+        const isFav = await api(`/api/favorites/check?userId=${user.userId}&songId=${songId}`);
         btn.style.color = isFav ? 'var(--accent)' : 'var(--text-3)';
         btn.textContent = isFav ? '♥' : '♡';
     } catch (e) { }
@@ -436,9 +574,10 @@ async function toggleFavorite() {
 
     try {
         if (isFav) {
-            await fetch(`/api/favorites/user/${user.userId}/song/${currentSongId}`, { method: 'DELETE' });
+            await api(`/api/favorites/user/${user.userId}/song/${currentSongId}`, 'DELETE');
             btn.style.color = 'var(--text-3)';
             btn.textContent = '♡';
+            showToast('Removed from favorites');
         } else {
             await api('/api/favorites', 'POST', { userId: user.userId, songId: currentSongId });
             btn.style.color = 'var(--accent)';
@@ -550,6 +689,10 @@ audio.addEventListener('timeupdate', () => {
     if (currentEl) {
         currentEl.textContent = formatTime(audio.currentTime);
     }
+    // Periodically save playback state (every ~5 seconds)
+    if (Math.floor(audio.currentTime) % 5 === 0) {
+        savePlaybackState();
+    }
 });
 
 audio.addEventListener('loadedmetadata', () => {
@@ -570,23 +713,66 @@ audio.addEventListener('error', () => {
     updatePlayButton();
 });
 
-// Volume control
-(function initVolume() {
+// Volume control — initialized after DOM is ready
+function initVolume() {
     const volSlider = document.querySelector('.volume-slider');
     if (!volSlider) return;
 
-    // Set initial volume
     audio.volume = 0.7;
     const fill = volSlider.querySelector('.volume-fill');
     if (fill) fill.style.width = '70%';
 
-    volSlider.addEventListener('click', (e) => {
+    function setVolume(e) {
         const rect = volSlider.getBoundingClientRect();
         const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
         audio.volume = pct;
         if (fill) fill.style.width = (pct * 100) + '%';
+        // Update speaker icon
+        const icon = volSlider.parentElement.querySelector('span');
+        if (icon) icon.textContent = pct === 0 ? '🔇' : pct < 0.5 ? '🔉' : '🔊';
+    }
+
+    // Click to set volume
+    volSlider.addEventListener('click', setVolume);
+
+    // Drag to adjust volume
+    let dragging = false;
+    volSlider.addEventListener('mousedown', (e) => {
+        dragging = true;
+        setVolume(e);
+        e.preventDefault();
     });
-})();
+    document.addEventListener('mousemove', (e) => {
+        if (dragging) setVolume(e);
+    });
+    document.addEventListener('mouseup', () => { dragging = false; });
+
+    // Mute toggle on speaker icon click
+    const speakerIcon = volSlider.parentElement.querySelector('span');
+    if (speakerIcon) {
+        let savedVolume = 0.7;
+        speakerIcon.style.cursor = 'pointer';
+        speakerIcon.addEventListener('click', () => {
+            if (audio.volume > 0) {
+                savedVolume = audio.volume;
+                audio.volume = 0;
+                if (fill) fill.style.width = '0%';
+                speakerIcon.textContent = '🔇';
+            } else {
+                audio.volume = savedVolume;
+                if (fill) fill.style.width = (savedVolume * 100) + '%';
+                speakerIcon.textContent = savedVolume < 0.5 ? '🔉' : '🔊';
+            }
+        });
+    }
+}
+
+// Run initVolume when DOM is ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initVolume);
+} else {
+    initVolume();
+}
 
 // Keyboard shortcuts
 document.addEventListener('keydown', (e) => {
@@ -604,80 +790,7 @@ document.addEventListener('keydown', (e) => {
     }
 });
 
-/* ── PJAX Implementation ────────────────────────────────────────── */
-document.addEventListener('click', async (e) => {
-    const a = e.target.closest('a');
-    if (!a) return;
-
-    const href = a.getAttribute('href');
-    if (!href || href.startsWith('#') || href.startsWith('javascript:') ||
-        a.hostname !== window.location.hostname || a.getAttribute('target') === '_blank') return;
-
-    // Exclude explicit urls that we don't want to PJAX
-    if (href.includes('/api/') || href.includes('download')) return;
-
-    e.preventDefault();
-    await navigate(href);
-});
-
-window.addEventListener('popstate', (e) => {
-    navigate(window.location.pathname + window.location.search, false);
-});
-
-async function navigate(url, push = true) {
-    try {
-        const res = await fetch(url);
-        if (!res.ok) {
-            if (res.status === 401 || res.status === 403) window.location.href = '/login';
-            return;
-        }
-        const text = await res.text();
-
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(text, 'text/html');
-
-        const newMain = doc.querySelector('main.page-content');
-        const oldMain = document.querySelector('main.page-content');
-
-        if (newMain && oldMain) {
-            oldMain.innerHTML = newMain.innerHTML;
-            oldMain.className = newMain.className;
-            document.title = doc.title;
-
-            if (push) history.pushState(null, '', url);
-
-            // Re-evaluate page specific scripts
-            const scripts = doc.querySelectorAll('script');
-            scripts.forEach(s => {
-                if (s.src && s.src.includes('app.js')) return;
-                const newScript = document.createElement('script');
-                if (s.src) newScript.src = s.src;
-                else newScript.textContent = s.textContent;
-                document.body.appendChild(newScript);
-                setTimeout(() => newScript.remove(), 50); // Speed up cleanup
-            });
-
-            // Update nav active states
-            document.querySelectorAll('.nav-links a').forEach(link => {
-                link.classList.remove('active');
-                const href = link.getAttribute('href');
-                if (href === window.location.pathname || (href === '/home' && window.location.pathname === '/')) {
-                    link.classList.add('active');
-                }
-            });
-
-            // Re-run global init if needed
-            if (typeof initPage === 'function') initPage();
-
-            window.scrollTo(0, 0);
-        } else {
-            window.location.href = url;
-        }
-    } catch (e) {
-        window.location.href = url;
-    }
-}
-
+/* ── Universal Search (no PJAX — normal navigation) ────────────── */
 function handleUniversalSearch(query) {
     if (!query || query.trim().length === 0) return;
     if (window.location.pathname === '/home') {
@@ -687,21 +800,100 @@ function handleUniversalSearch(query) {
             if (typeof debounceSearch === 'function') debounceSearch();
         }
     } else {
-        window.location.href = '/home?q=' + encodeURIComponent(query);
+        spaNavigate('/home?q=' + encodeURIComponent(query));
     }
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-    if (window.location.pathname === '/home') {
-        const q = new URLSearchParams(window.location.search).get('q');
-        if (q) {
-            setTimeout(() => {
-                const hs = document.getElementById('searchInput');
-                if (hs) {
-                    hs.value = q;
-                    if (typeof searchSongs === 'function') searchSongs();
-                }
-            }, 300);
-        }
-    }
+/* ── Custom Mini-SPA Router (Seamless Audio) ────────────── */
+// Intercept clicks on same-origin links to prevent hard reloads and keep audio playing
+document.addEventListener('click', e => {
+    // Find closest anchor tag
+    const a = e.target.closest('a');
+    if (!a || !a.href) return;
+
+    // Ignore external links, new tabs, or links asking to be ignored
+    if (a.target === '_blank' || a.host !== window.location.host || a.hasAttribute('download')) return;
+
+    // Ignore hash links
+    if (a.getAttribute('href').startsWith('#')) return;
+
+    // Prevent default hard navigation
+    e.preventDefault();
+    spaNavigate(a.href);
 });
+
+// Handle browser Back/Forward buttons
+window.addEventListener('popstate', () => {
+    spaNavigate(window.location.href, false);
+});
+
+async function spaNavigate(url, pushState = true) {
+    try {
+        // Optional loading indictor logic could go here
+        const response = await fetch(url);
+        if (!response.ok) {
+            if (response.status === 401) { window.location.href = '/login'; return; }
+            throw new Error('Failed to load page');
+        }
+
+        const html = await response.text();
+
+        // Parse the fetched HTML
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+
+        // Extract main content and title
+        const newMain = doc.querySelector('main');
+        if (!newMain) {
+            // fallback to hard reload if the target page structure is radically different
+            window.location.href = url;
+            return;
+        }
+
+        document.title = doc.title;
+
+        // Swap out the main content
+        const currentMain = document.querySelector('main');
+        if (currentMain) {
+            currentMain.innerHTML = newMain.innerHTML;
+            currentMain.className = newMain.className; // sync classes (e.g. app-bg vs nothing)
+        }
+
+        // Update active states in Navbar
+        document.querySelectorAll('.nav-links a').forEach(link => {
+            if (link.getAttribute('href') === new URL(url).pathname) {
+                link.classList.add('active');
+            } else {
+                link.classList.remove('active');
+            }
+        });
+
+        // Re-initialize specific page scripts safely
+        if (typeof initPage === 'function') {
+            // Because initPage is often declared globally in inline <script> tags on the HTML templates,
+            // we need to extract and evaluate inline scripts within the new <main> or the page itself.
+            const newScripts = doc.querySelectorAll('script:not([src])');
+            newScripts.forEach(script => {
+                if (script.textContent.includes('initPage')) {
+                    try {
+                        // Execute the new page's inline JS logic in global scope so functions like loadTrending wire up
+                        const fn = new Function(script.textContent);
+                        fn();
+                    } catch (err) { console.error('SPA Script execution error', err); }
+                }
+            });
+        }
+
+        // Push state to browser history
+        if (pushState) {
+            window.history.pushState({}, doc.title, url);
+        }
+
+        // Scroll to top
+        window.scrollTo(0, 0);
+
+    } catch (e) {
+        console.error('SPA Navigation Error:', e);
+        window.location.href = url; // Fallback to hard reload on error
+    }
+}

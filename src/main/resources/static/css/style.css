@@ -1190,18 +1190,25 @@ h4 {
 }
 
 .volume-slider {
-    width: 72px;
-    height: 3px;
-    background: var(--border-1);
-    border-radius: 2px;
+    width: 80px;
+    height: 6px;
+    background: var(--border-2);
+    border-radius: 3px;
     cursor: pointer;
+    position: relative;
+    padding: 8px 0;
+    background-clip: content-box;
 }
 
 .volume-fill {
-    height: 100%;
-    background: var(--text-2);
-    border-radius: 2px;
+    height: 6px;
+    background: var(--accent);
+    border-radius: 3px;
     width: 70%;
+    pointer-events: none;
+    transition: width 0.05s linear;
+    position: relative;
+    top: 8px;
 }
 
 /* ═══════════════════════════════════════════════════════════════

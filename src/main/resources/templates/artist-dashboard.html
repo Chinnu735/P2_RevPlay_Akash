@@ -18,13 +18,13 @@
         <div class="nav-links" id="navLinks">
             <a href="/home">Home</a>
             <a href="/browse">Browse</a>
+            <a href="/podcasts">Podcasts</a>
             <a href="/playlists">Playlists</a>
             <a href="/favorites">Favorites</a>
-            <a href="/browse" id="podcastsLink">Podcasts</a>
             <a href="/artist-dashboard" id="dashboardLink" class="active">Dashboard</a>
         </div>
         <div class="nav-search">
-            <input type="text" placeholder="Search songs..."
+            <input type="text" id="searchInput" name="search" placeholder="Search songs..."
                 onkeydown="if(event.key==='Enter') handleUniversalSearch(this.value)">
         </div>
         <div class="nav-actions"><a href="/profile" class="user-avatar" id="userAvatar">A</a></div>
@@ -70,6 +70,7 @@
             <button class="tab" onclick="showTab('podcasts', this)">Podcasts</button>
             <button class="tab" onclick="showTab('popular', this)">Popular</button>
             <button class="tab" onclick="showTab('listeners', this)">Listeners</button>
+            <button class="tab" onclick="showTab('fans', this)">Fans</button>
         </div>
 
         <div id="songsTab">
@@ -105,6 +106,13 @@
                 <h3>Top Listeners</h3>
             </div>
             <div id="listenersList"></div>
+        </div>
+
+        <div id="fansTab" class="hidden">
+            <div class="section-header mt-2">
+                <h3>Favorited By</h3>
+            </div>
+            <div id="fansList"></div>
         </div>
 
     </main>
@@ -210,13 +218,65 @@
         </div>
     </div>
 
+    <!-- Edit Song Modal -->
+    <div class="modal-backdrop" id="editSongModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>Edit Song</h3><button class="modal-close" onclick="hideModal('editSongModal')">✕</button>
+            </div>
+            <form onsubmit="updateSong(event)">
+                <input type="hidden" id="editSongId">
+                <div class="form-group"><label>Title</label><input type="text" id="editSongTitle" class="form-control"
+                        required></div>
+                <div class="form-group"><label>Cover Image URL (optional)</label><input type="url" id="editSongCover"
+                        class="form-control"></div>
+                <div class="form-group"><label>Release Date</label><input type="date" id="editSongDate"
+                        class="form-control"></div>
+                <div class="form-group"><label>Album</label><select id="editSongAlbumId" class="form-control">
+                        <option value="">Single (no album)</option>
+                    </select></div>
+                <div class="form-group"><label>Genre</label><select id="editSongGenreId" class="form-control">
+                        <option value="">Select</option>
+                    </select></div>
+                <div class="form-group"><label>Visibility</label>
+                    <select id="editSongVisibility" class="form-control">
+                        <option value="public">Public</option>
+                        <option value="unlisted">Unlisted</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-primary w-full">Save Changes</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Edit Album Modal -->
+    <div class="modal-backdrop" id="editAlbumModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>Edit Album</h3><button class="modal-close" onclick="hideModal('editAlbumModal')">✕</button>
+            </div>
+            <form onsubmit="updateAlbum(event)">
+                <input type="hidden" id="editAlbumId">
+                <div class="form-group"><label>Name</label><input type="text" id="editAlbumName" class="form-control"
+                        required></div>
+                <div class="form-group"><label>Description</label><textarea id="editAlbumDesc" class="form-control"
+                        rows="3"></textarea></div>
+                <div class="form-group"><label>Cover Image URL (optional)</label><input type="url" id="editAlbumCover"
+                        class="form-control"></div>
+                <div class="form-group"><label>Release Date</label><input type="date" id="editAlbumDate"
+                        class="form-control"></div>
+                <button type="submit" class="btn btn-primary w-full">Save Changes</button>
+            </form>
+        </div>
+    </div>
+
     <div th:replace="~{fragments/footer :: footerBase}"></div>
     <div th:replace="~{fragments/player :: playerBar}"></div>
     <div th:replace="~{fragments/modals :: modals}"></div>
 
     <script th:src="@{/js/app.js}"></script>
     <script>
-        let pendingAlbumSelectionId = null;
+        var pendingAlbumSelectionId = null;
 
         function initPage() {
             const user = getUser();
@@ -255,7 +315,9 @@
                     songsList.innerHTML = d.mySongs.map((s, i) => {
                         const row = ui.songRow(s, i);
                         return row.replace('<div class="song-actions">',
-                            `<div class="song-actions" style="opacity:1;"><button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();deleteSong(${s.id}, this)">✕</button>`);
+                            `<div class="song-actions" style="opacity:1;">
+                                <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();editSong(${s.id})" title="Edit">✏️</button>
+                                <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();deleteSong(${s.id}, this)" title="Delete">✕</button>`);
                     }).join('');
                 } else {
                     songsList.innerHTML = ui.empty('🎵', 'No songs yet.');
@@ -267,7 +329,9 @@
                     albumGrid.innerHTML = d.myAlbums.map(a => {
                         const card = ui.card(a, 'album');
                         return card.replace('class="card">', 'class="card" style="position:relative;">')
-                            .replace('</a>', `</a><button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();deleteAlbum(${a.id}, this)" style="position:absolute;top:8px;right:8px;background:rgba(0,0,0,0.5);color:white;border-radius:50%;width:32px;height:32px;padding:0;display:flex;align-items:center;justify-content:center;z-index:1;">✕</button>`);
+                            .replace('</a>', `</a>
+                                <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();editAlbum(${a.id})" style="position:absolute;top:8px;right:44px;background:rgba(0,0,0,0.5);color:white;border-radius:50%;width:32px;height:32px;padding:0;display:flex;align-items:center;justify-content:center;z-index:1;" title="Edit">✏️</button>
+                                <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();deleteAlbum(${a.id}, this)" style="position:absolute;top:8px;right:8px;background:rgba(0,0,0,0.5);color:white;border-radius:50%;width:32px;height:32px;padding:0;display:flex;align-items:center;justify-content:center;z-index:1;" title="Delete">✕</button>`);
                     }).join('');
                     populateAlbumDropdown(d.myAlbums);
                 } else {
@@ -307,6 +371,23 @@
                         </div>`).join('');
                 } else {
                     document.getElementById('listenersList').innerHTML = ui.empty('👤', 'No data yet.');
+                }
+
+                // 7. Fans (Favorited By)
+                try {
+                    const fansData = await api(`/api/analytics/artist/${artistId}/favorited-users`);
+                    if (fansData && fansData.length) {
+                        document.getElementById('fansList').innerHTML = fansData.map((f, i) => `
+                        <div class="song-row">
+                            <span class="song-number">${i + 1}</span>
+                            <div class="song-thumb" style="border-radius:50%;background:var(--accent);color:white;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.75rem;">${(f.username || '?').charAt(0).toUpperCase()}</div>
+                            <div class="song-info"><div class="song-title">${f.username || ''}</div></div>
+                        </div>`).join('');
+                    } else {
+                        document.getElementById('fansList').innerHTML = ui.empty('❤️', 'No favorites yet.');
+                    }
+                } catch (e) {
+                    document.getElementById('fansList').innerHTML = ui.empty('⚠️', 'Could not load fans.');
                 }
 
             } catch (e) {
@@ -465,10 +546,87 @@
             } catch (e) { showToast('Failed', 'error'); }
         }
 
+        async function editSong(id) {
+            try {
+                const song = await api(`/api/songs/${id}`);
+                document.getElementById('editSongId').value = song.id;
+                document.getElementById('editSongTitle').value = song.title || '';
+                document.getElementById('editSongCover').value = song.coverImage || '';
+                document.getElementById('editSongDate').value = song.releaseDate || '';
+                document.getElementById('editSongVisibility').value = song.visibility || 'public';
+
+                // Copy options to edit modal selects
+                document.getElementById('editSongAlbumId').innerHTML = document.getElementById('songAlbumId').innerHTML;
+                document.getElementById('editSongGenreId').innerHTML = document.getElementById('songGenreId').innerHTML;
+
+                document.getElementById('editSongAlbumId').value = song.albumId || '';
+                document.getElementById('editSongGenreId').value = song.genreId || '';
+
+                showModal('editSongModal');
+            } catch (e) { showToast('Could not load song', 'error'); }
+        }
+
+        async function updateSong(e) {
+            e.preventDefault();
+            const id = document.getElementById('editSongId').value;
+            const user = getUser();
+            const btn = e.target.querySelector('button[type=submit]');
+            btn.disabled = true; btn.textContent = 'Saving...';
+            try {
+                const originalSong = await api(`/api/songs/${id}`);
+                await api(`/api/songs/${id}`, 'PUT', {
+                    ...originalSong,
+                    title: document.getElementById('editSongTitle').value.trim(),
+                    coverImage: document.getElementById('editSongCover').value.trim() || null,
+                    releaseDate: document.getElementById('editSongDate').value || null,
+                    albumId: document.getElementById('editSongAlbumId').value || null,
+                    genreId: document.getElementById('editSongGenreId').value || null,
+                    visibility: document.getElementById('editSongVisibility').value
+                });
+                hideModal('editSongModal');
+                showToast('Song updated!');
+                if (user && user.artistProfileId) loadAllData(user.artistProfileId);
+            } catch (err) { showToast('Update failed', 'error'); }
+            btn.disabled = false; btn.textContent = 'Save Changes';
+        }
+
+        async function editAlbum(id) {
+            try {
+                const d = await api(`/api/analytics/album/${id}/detail`);
+                document.getElementById('editAlbumId').value = id;
+                document.getElementById('editAlbumName').value = d.albumName || '';
+                document.getElementById('editAlbumDesc').value = d.description || '';
+                document.getElementById('editAlbumCover').value = d.coverImage || '';
+                document.getElementById('editAlbumDate').value = d.releaseDate || '';
+                showModal('editAlbumModal');
+            } catch (e) { showToast('Load missing detail', 'error'); } // backend detail call missing some fields probably, let's grab directly if needed. Wait, detail call does contain them in the implementation.
+        }
+
+        async function updateAlbum(e) {
+            e.preventDefault();
+            const id = document.getElementById('editAlbumId').value;
+            const user = getUser();
+            const btn = e.target.querySelector('button[type=submit]');
+            btn.disabled = true; btn.textContent = 'Saving...';
+            try {
+                await api(`/api/albums/${id}`, 'PUT', {
+                    artistId: user.artistProfileId,
+                    name: document.getElementById('editAlbumName').value.trim(),
+                    description: document.getElementById('editAlbumDesc').value.trim(),
+                    coverImage: document.getElementById('editAlbumCover').value.trim() || null,
+                    releaseDate: document.getElementById('editAlbumDate').value || null
+                });
+                hideModal('editAlbumModal');
+                showToast('Album updated!');
+                if (user && user.artistProfileId) loadAllData(user.artistProfileId);
+            } catch (err) { showToast('Update failed', 'error'); }
+            btn.disabled = false; btn.textContent = 'Save Changes';
+        }
+
         function showTab(tab, el) {
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
             el.classList.add('active');
-            ['songsTab', 'albumsTab', 'podcastsTab', 'popularTab', 'listenersTab'].forEach(id => {
+            ['songsTab', 'albumsTab', 'podcastsTab', 'popularTab', 'listenersTab', 'fansTab'].forEach(id => {
                 const doc = document.getElementById(id);
                 if (doc) doc.classList.add('hidden');
             });

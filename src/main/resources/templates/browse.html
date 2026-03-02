@@ -18,13 +18,13 @@
         <div class="nav-links" id="navLinks">
             <a href="/home">Home</a>
             <a href="/browse" class="active">Browse</a>
+            <a href="/podcasts">Podcasts</a>
             <a href="/playlists">Playlists</a>
             <a href="/favorites">Favorites</a>
-            <a href="/browse" id="podcastsLink">Podcasts</a>
             <a href="/artist-dashboard" id="dashboardLink">Dashboard</a>
         </div>
         <div class="nav-search">
-            <input type="text" placeholder="Search songs..."
+            <input type="text" id="searchInput" name="search" placeholder="Search songs..."
                 onkeydown="if(event.key==='Enter') handleUniversalSearch(this.value)">
         </div>
         <div class="nav-actions"><a href="/profile" class="user-avatar" id="userAvatar">U</a></div>
@@ -42,16 +42,16 @@
 
         <section class="section">
             <div class="section-header">
-                <h2>Albums</h2>
+                <h2>Artists</h2>
             </div>
-            <div class="grid grid-4" id="albumsGrid"></div>
+            <div class="grid grid-5" id="browseArtistsGrid"></div>
         </section>
 
         <section class="section">
             <div class="section-header">
-                <h2>Podcasts</h2>
+                <h2>Albums</h2>
             </div>
-            <div class="grid grid-4" id="podcastsGrid"></div>
+            <div class="grid grid-4" id="albumsGrid"></div>
         </section>
 
     </main>
@@ -67,8 +67,8 @@
             if (!user) return window.location.replace('/login');
 
             loadTrending();
+            loadBrowseArtists();
             loadAlbums();
-            loadPodcasts();
         }
 
         initPage();
@@ -83,6 +83,25 @@
             } catch (e) { grid.innerHTML = ui.empty('❌', 'Failed to load trending.'); }
         }
 
+        async function loadBrowseArtists() {
+            const grid = document.getElementById('browseArtistsGrid');
+            try {
+                const data = await api('/api/artists');
+                grid.innerHTML = data && data.length
+                    ? data.map(a => `
+                        <a href="/artist/${a.id}" class="card" style="text-decoration:none;">
+                            <div class="card-img" style="background:var(--bg-3);display:flex;align-items:center;justify-content:center;font-size:2rem;color:var(--text-4);">
+                                ${a.profilePicture ? `<img src="${a.profilePicture}" style="width:100%;height:100%;object-fit:cover;" onerror="this.style.display='none';this.parentElement.innerHTML='🎤'">` : '🎤'}
+                            </div>
+                            <div class="card-body">
+                                <div class="card-title">${a.stageName || a.artistName || ''}</div>
+                                <div class="card-subtitle">${a.genreName || 'Artist'}</div>
+                            </div>
+                        </a>`).join('')
+                    : ui.empty('🎤', 'No artists yet.');
+            } catch (e) { grid.innerHTML = ui.empty('⚠️', 'Error loading artists.'); }
+        }
+
         async function loadAlbums() {
             const grid = document.getElementById('albumsGrid');
             try {
@@ -91,16 +110,6 @@
                     ? data.map(a => ui.card(a, 'album')).join('')
                     : ui.empty('◉', 'No albums found.');
             } catch (e) { grid.innerHTML = ui.empty('⚠️', 'Error loading albums.'); }
-        }
-
-        async function loadPodcasts() {
-            const grid = document.getElementById('podcastsGrid');
-            try {
-                const data = await api('/api/podcasts');
-                grid.innerHTML = data && data.length
-                    ? data.map(p => ui.card(p, 'podcast')).join('')
-                    : ui.empty('🎙️', 'No podcasts found.');
-            } catch (e) { grid.innerHTML = ui.empty('❌', 'Error loading podcasts.'); }
         }
     </script>
 </body>

@@ -18,13 +18,13 @@
         <div class="nav-links" id="navLinks">
             <a href="/home">Home</a>
             <a href="/browse">Browse</a>
+            <a href="/podcasts">Podcasts</a>
             <a href="/playlists">Playlists</a>
             <a href="/favorites">Favorites</a>
-            <a href="/browse" id="podcastsLink">Podcasts</a>
             <a href="/artist-dashboard" id="dashboardLink">Dashboard</a>
         </div>
         <div class="nav-search">
-            <input type="text" placeholder="Search songs..."
+            <input type="text" id="searchInput" name="search" placeholder="Search songs..."
                 onkeydown="if(event.key==='Enter') handleUniversalSearch(this.value)">
         </div>
         <div class="nav-actions"><a href="/profile" class="user-avatar" id="userAvatar">U</a></div>
@@ -106,8 +106,8 @@
 
     <script th:src="@{/js/app.js}"></script>
     <script>
-        let episodesData = [];
-        let podcastData = null;
+        var episodesData = [];
+        var podcastData = null;
 
         function initPage() {
             const user = getUser();

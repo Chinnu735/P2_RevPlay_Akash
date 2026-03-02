@@ -12,26 +12,26 @@
 
     <nav class="navbar">
         <a href="/home" class="logo">
-            <span class="logo-mark"><span class="eq-bar"></span><span class="eq-bar"></span><span
-                    class="eq-bar"></span><span class="eq-bar"></span></span> RevPlay
+            <img th:src="@{/images/logo.png}" alt="Logo"
+                style="width: 32px; height: 32px; border-radius: 4px; filter: invert(1);"> RevPlay
         </a>
         <div class="nav-links" id="navLinks">
             <a href="/home">Home</a>
             <a href="/browse">Browse</a>
+            <a href="/podcasts">Podcasts</a>
             <a href="/playlists">Playlists</a>
             <a href="/favorites">Favorites</a>
-            <a href="/browse" id="podcastsLink">Podcasts</a>
             <a href="/artist-dashboard" id="dashboardLink">Dashboard</a>
         </div>
         <div class="nav-search">
-            <input type="text" placeholder="Search songs..."
+            <input type="text" id="searchInput" name="search" placeholder="Search songs..."
                 onkeydown="if(event.key==='Enter') handleUniversalSearch(this.value)">
         </div>
         <div class="nav-actions"><a href="/profile" class="user-avatar" id="userAvatar">U</a></div>
         <button class="menu-toggle" onclick="document.getElementById('navLinks').classList.toggle('open')">☰</button>
     </nav>
 
-    <div class="artist-banner page-content">
+    <div class="artist-banner page-content" id="artistBannerImage">
         <div class="artist-banner-content">
             <span class="badge badge-accent">Artist</span>
             <h1 id="artistName">&nbsp;</h1>
@@ -73,6 +73,13 @@
                 document.getElementById('artistName').textContent = d.artistName;
                 document.getElementById('artistGenre').textContent = d.genreName || '';
                 document.title = `${d.artistName} — RevPlay`;
+
+                if (d.bannerImage) {
+                    const bannerEl = document.getElementById('artistBannerImage');
+                    bannerEl.style.backgroundImage = `url('${d.bannerImage}')`;
+                    bannerEl.style.backgroundSize = 'cover';
+                    bannerEl.style.backgroundPosition = 'center';
+                }
 
                 const links = [
                     { url: d.instagramLink, label: 'Instagram' },

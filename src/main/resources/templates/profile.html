@@ -18,13 +18,13 @@
         <div class="nav-links" id="navLinks">
             <a href="/home">Home</a>
             <a href="/browse">Browse</a>
+            <a href="/podcasts">Podcasts</a>
             <a href="/playlists">Playlists</a>
             <a href="/favorites">Favorites</a>
-            <a href="/browse" id="podcastsLink">Podcasts</a>
             <a href="/artist-dashboard" id="dashboardLink">Dashboard</a>
         </div>
         <div class="nav-search">
-            <input type="text" placeholder="Search songs..."
+            <input type="text" id="searchInput" name="search" placeholder="Search songs..."
                 onkeydown="if(event.key==='Enter') handleUniversalSearch(this.value)">
         </div>
         <div class="nav-actions"><a href="/profile" class="user-avatar active" id="userAvatar">U</a></div>
@@ -95,6 +95,14 @@
                             <input type="file" id="editBannerFile" class="form-control" accept="image/*"
                                 style="padding:0.5rem;">
                         </div>
+                    </div>
+                    <div class="form-group" id="socialLinksGroup" style="display:none;">
+                        <label>Instagram Link (Optional)</label>
+                        <input type="url" id="editInstagram" class="form-control"
+                            placeholder="https://instagram.com/yourhandle">
+                        <label style="margin-top:0.5rem;">YouTube Link (Optional)</label>
+                        <input type="url" id="editYoutube" class="form-control"
+                            placeholder="https://youtube.com/c/yourchannel">
                     </div>
                     <div class="auth-divider">Security</div>
                     <div class="form-group">
@@ -215,9 +223,16 @@
                         bannerEl.style.backgroundImage = `url('${existingBannerImage}')`;
                     }
                     let socialHtml = '';
-                    if (ad.instagramLink) socialHtml += `<a href="${ad.instagramLink}" target="_blank" style="color:var(--text-3);font-size:1.2rem;text-decoration:none;">📷</a>`;
-                    if (ad.youtubeLink) socialHtml += `<a href="${ad.youtubeLink}" target="_blank" style="color:var(--text-3);font-size:1.2rem;text-decoration:none;">📺</a>`;
+                    if (ad.instagramLink) {
+                        socialHtml += `<a href="${ad.instagramLink}" target="_blank" style="color:var(--text-3);font-size:1.2rem;text-decoration:none;">📷</a>`;
+                        document.getElementById('editInstagram').value = ad.instagramLink;
+                    }
+                    if (ad.youtubeLink) {
+                        socialHtml += `<a href="${ad.youtubeLink}" target="_blank" style="color:var(--text-3);font-size:1.2rem;text-decoration:none;">📺</a>`;
+                        document.getElementById('editYoutube').value = ad.youtubeLink;
+                    }
                     document.getElementById('socialLinksDisplay').innerHTML = socialHtml;
+                    document.getElementById('socialLinksGroup').style.display = 'block';
                 }
             } catch (e) { }
         }
@@ -229,6 +244,7 @@
             btn.disabled = true; btn.textContent = 'Saving...';
 
             try {
+                // Upload profile picture if selected
                 const picFile = document.getElementById('editPictureFile');
                 if (picFile.files.length > 0) {
                     const formData = new FormData();
@@ -240,6 +256,7 @@
                     if (upRes.ok) { const ud = await upRes.json(); existingProfilePicture = ud.url; }
                 }
 
+                // Upload banner image if selected
                 const banFile = document.getElementById('editBannerFile');
                 if (banFile && banFile.files.length > 0) {
                     const fd = new FormData();
@@ -251,35 +268,74 @@
                     if (banRes.ok) {
                         const bd = await banRes.json();
                         existingBannerImage = bd.url;
-                        const bannerEl = document.getElementById('artistBanner');
-                        bannerEl.style.display = 'block';
-                        bannerEl.style.backgroundImage = `url('${existingBannerImage}')`;
                     }
                 }
 
+                // Save user data
                 const pw = document.getElementById('editPassword').value;
+                const bio = document.getElementById('editBio').value;
+                const displayName = document.getElementById('editDisplayName').value;
                 const updatedData = {
                     email: user.email,
                     username: user.username,
                     password: pw || '',
                     role: user.role,
-                    displayName: document.getElementById('editDisplayName').value,
-                    bio: document.getElementById('editBio').value,
+                    displayName: displayName,
+                    bio: bio,
                     profilePicture: existingProfilePicture
                 };
 
                 await api(`/api/users/${user.userId}`, 'PUT', updatedData);
 
-                // Update UI immediately
-                document.getElementById('profileName').textContent = updatedData.displayName || user.username;
-                document.getElementById('profileBioDisplay').textContent = updatedData.bio;
-                if (existingProfilePicture) {
-                    document.getElementById('profileAvatar').innerHTML = `<img src="${existingProfilePicture}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
+                // Save banner and socials to artist profile if artist
+                if (user.role === 'artist' && user.artistProfileId) {
+                    try {
+                        const artistUpdatePayload = { userId: user.userId };
+                        if (existingBannerImage) artistUpdatePayload.bannerImage = existingBannerImage;
+
+                        const insta = document.getElementById('editInstagram');
+                        if (insta && insta.value !== undefined) artistUpdatePayload.instagramLink = insta.value.trim();
+
+                        const yt = document.getElementById('editYoutube');
+                        if (yt && yt.value !== undefined) artistUpdatePayload.youtubeLink = yt.value.trim();
+
+                        await api(`/api/artists/${user.artistProfileId}`, 'PUT', artistUpdatePayload);
+                    } catch (e) { console.error('Artist profile save error:', e); }
                 }
 
+                // Update page UI immediately
+                document.getElementById('profileName').textContent = displayName || user.username;
+                document.getElementById('profileBioDisplay').textContent = bio;
+
+                // Update profile avatar (page)
+                if (existingProfilePicture) {
+                    document.getElementById('profileAvatar').innerHTML = `<img src="${existingProfilePicture}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
+                } else {
+                    document.getElementById('profileAvatar').textContent = (displayName || user.username || 'U').charAt(0).toUpperCase();
+                }
+
+                // Update navbar avatar
+                const navAvatar = document.getElementById('userAvatar');
+                if (navAvatar) {
+                    if (existingProfilePicture) {
+                        navAvatar.innerHTML = `<img src="${existingProfilePicture}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
+                    } else {
+                        navAvatar.textContent = (displayName || user.username || 'U').charAt(0).toUpperCase();
+                    }
+                }
+
+                // Update banner display
+                if (existingBannerImage) {
+                    const bannerEl = document.getElementById('artistBanner');
+                    bannerEl.style.display = 'block';
+                    bannerEl.style.backgroundImage = `url('${existingBannerImage}')`;
+                }
+
+                // Persist to localStorage so all pages get the updated info
                 localStorage.setItem('user', JSON.stringify(Object.assign({}, user, {
-                    displayName: updatedData.displayName,
-                    profilePicture: existingProfilePicture
+                    displayName: displayName,
+                    profilePicture: existingProfilePicture,
+                    bio: bio
                 })));
 
                 document.getElementById('editPassword').value = '';

@@ -18,14 +18,14 @@
         <div class="nav-links" id="navLinks">
             <a href="/home" class="active">Home</a>
             <a href="/browse">Browse</a>
+            <a href="/podcasts">Podcasts</a>
             <a href="/playlists">Playlists</a>
             <a href="/favorites">Favorites</a>
-            <a href="/browse" id="podcastsLink">Podcasts</a>
             <a href="/artist-dashboard" id="dashboardLink">Dashboard</a>
         </div>
         <div class="nav-search">
-            <input type="text" placeholder="Search songs..."
-                onkeydown="if(event.key==='Enter') handleUniversalSearch(this.value)">
+            <input type="text" id="searchInput" name="search" placeholder="Search songs..." oninput="debounceSearch()"
+                onkeydown="if(event.key==='Enter') { event.preventDefault(); searchSongs(); }">
         </div>
         <div class="nav-actions"><a href="/profile" class="user-avatar" id="userAvatar">U</a></div>
         <button class="menu-toggle" onclick="document.getElementById('navLinks').classList.toggle('open')">☰</button>
@@ -33,18 +33,16 @@
 
     <main class="page-content container">
 
-        <!-- SEARCH SECTION -->
+        <!-- SEARCH RESULTS (populated dynamically) -->
         <section class="section" style="padding-top: 1rem;">
-            <div style="max-width:460px; margin: 0 auto 2rem;">
-                <input type="text" id="searchInput" class="form-control" placeholder="Search songs…"
-                    oninput="debounceSearch()" style="font-size:0.9rem;padding:0.85rem 1rem;">
-            </div>
-
             <div id="searchResults" class="hidden" style="margin-bottom: 2rem;">
                 <div class="section-header">
                     <h2>Search Results</h2>
                     <button class="btn btn-ghost btn-sm" onclick="clearSearch()">Clear</button>
                 </div>
+                <div id="searchArtistResults"></div>
+                <div id="searchAlbumResults"></div>
+                <div id="searchPlaylistResults"></div>
                 <div id="searchList"></div>
             </div>
         </section>
@@ -69,7 +67,10 @@
         <section class="section">
             <div class="section-header">
                 <h2>Recently Played</h2>
-                <button class="btn btn-ghost btn-sm" onclick="clearHistory()">Clear History</button>
+                <div>
+                    <button class="btn btn-ghost btn-sm" onclick="showAllHistory()">View All</button>
+                    <button class="btn btn-ghost btn-sm" onclick="clearHistory()">Clear History</button>
+                </div>
             </div>
             <div class="grid grid-5" id="historyList"></div>
         </section>
@@ -80,9 +81,19 @@
     <div th:replace="~{fragments/player :: playerBar}"></div>
     <div th:replace="~{fragments/modals :: modals}"></div>
 
+    <!-- All History Modal -->
+    <div class="modal-backdrop" id="allHistoryModal">
+        <div class="modal modal-lg">
+            <div class="modal-header">
+                <h3>Complete Listening History</h3>
+                <button class="modal-close" onclick="hideModal('allHistoryModal')">✕</button>
+            </div>
+            <div id="allHistoryList" style="max-height: 60vh; overflow-y: auto; padding-right: 0.5rem;"></div>
+        </div>
+    </div>
+
     <script th:src="@{/js/app.js}"></script>
     <script>
-        // Use a function-based init to play nice with PJAX
         function initPage() {
             const user = getUser();
             if (!user) return window.location.replace('/login');
@@ -92,13 +103,20 @@
             loadHistory();
 
             // Handle query param if coming from universal search
-            const q = new URLSearchParams(window.location.search).get('q');
+            const params = new URLSearchParams(window.location.search);
+            const q = params.get('q');
             if (q) {
                 const hs = document.getElementById('searchInput');
                 if (hs) {
                     hs.value = q;
                     searchSongs();
                 }
+            }
+
+            // Handle genre filter from browse page
+            const genreId = params.get('genre');
+            if (genreId) {
+                filterByGenre(parseInt(genreId), 'Genre Results');
             }
         }
 
@@ -113,17 +131,71 @@
         async function searchSongs() {
             const q = document.getElementById('searchInput').value.trim();
             const section = document.getElementById('searchResults');
-            const list = document.getElementById('searchList');
+            const songList = document.getElementById('searchList');
+            const artistResults = document.getElementById('searchArtistResults');
+            const albumResults = document.getElementById('searchAlbumResults');
+            const playlistResults = document.getElementById('searchPlaylistResults');
             if (!q) { section.classList.add('hidden'); return; }
 
-            try {
-                const data = await api('/api/songs/search?title=' + encodeURIComponent(q));
-                section.classList.remove('hidden');
-                list.innerHTML = data && data.length
-                    ? data.map((s, i) => ui.songRow(s, i)).join('')
-                    : ui.empty('🔍', 'No songs found.');
-            } catch (e) {
-                list.innerHTML = ui.empty('❌', 'Search failed.');
+            section.classList.remove('hidden');
+            document.querySelector('#searchResults .section-header h2').textContent = 'Search Results';
+
+            // Search all content types in parallel
+            const [songsRes, artistsRes, albumsRes, playlistsRes] = await Promise.allSettled([
+                api('/api/songs/search?title=' + encodeURIComponent(q)),
+                api('/api/artists'),
+                api('/api/albums'),
+                api('/api/playlists')
+            ]);
+
+            // Songs
+            const songs = songsRes.status === 'fulfilled' ? songsRes.value : [];
+            songList.innerHTML = songs && songs.length
+                ? '<h3 style="color:var(--text-2);font-size:0.85rem;margin:1rem 0 0.5rem;text-transform:uppercase;letter-spacing:0.05em;">Songs</h3>' +
+                songs.map((s, i) => ui.songRow(s, i)).join('')
+                : '';
+
+            // Artists (client-side filter by name)
+            const artists = artistsRes.status === 'fulfilled' ? artistsRes.value : [];
+            const matchedArtists = artists.filter(a =>
+                (a.stageName || a.artistName || '').toLowerCase().includes(q.toLowerCase())
+            );
+            artistResults.innerHTML = matchedArtists.length
+                ? '<h3 style="color:var(--text-2);font-size:0.85rem;margin:1rem 0 0.5rem;text-transform:uppercase;letter-spacing:0.05em;">Artists</h3>' +
+                '<div class="grid grid-5">' + matchedArtists.map(a =>
+                    `<a href="/artist/${a.id}" class="card" style="text-decoration:none;">
+                        <div class="card-img" style="background:var(--bg-3);display:flex;align-items:center;justify-content:center;font-size:2rem;color:var(--text-4);">🎤</div>
+                        <div class="card-body"><div class="card-title">${a.stageName || a.artistName || ''}</div></div>
+                    </a>`).join('') + '</div>'
+                : '';
+
+            // Albums (client-side filter)
+            const albums = albumsRes.status === 'fulfilled' ? albumsRes.value : [];
+            const matchedAlbums = albums.filter(a =>
+                (a.title || a.name || '').toLowerCase().includes(q.toLowerCase())
+            );
+            albumResults.innerHTML = matchedAlbums.length
+                ? '<h3 style="color:var(--text-2);font-size:0.85rem;margin:1rem 0 0.5rem;text-transform:uppercase;letter-spacing:0.05em;">Albums</h3>' +
+                '<div class="grid grid-4">' + matchedAlbums.map(a => ui.card(a, 'album')).join('') + '</div>'
+                : '';
+
+            // Playlists (client-side filter)
+            const playlists = playlistsRes.status === 'fulfilled' ? playlistsRes.value : [];
+            const matchedPlaylists = playlists.filter(p =>
+                (p.name || '').toLowerCase().includes(q.toLowerCase())
+            );
+            playlistResults.innerHTML = matchedPlaylists.length
+                ? '<h3 style="color:var(--text-2);font-size:0.85rem;margin:1rem 0 0.5rem;text-transform:uppercase;letter-spacing:0.05em;">Playlists</h3>' +
+                '<div class="grid grid-4">' + matchedPlaylists.map(p =>
+                    `<a href="/playlist/${p.id}" class="card" style="text-decoration:none;">
+                        <div class="card-img" style="background:var(--bg-3);display:flex;align-items:center;justify-content:center;font-size:2rem;color:var(--text-4);">📋</div>
+                        <div class="card-body"><div class="card-title">${p.name}</div><div class="card-subtitle">${p.songCount || 0} songs</div></div>
+                    </a>`).join('') + '</div>'
+                : '';
+
+            // If nothing found across all types
+            if (!songs.length && !matchedArtists.length && !matchedAlbums.length && !matchedPlaylists.length) {
+                songList.innerHTML = ui.empty('🔍', 'No results found.');
             }
         }
 
@@ -184,13 +256,24 @@
             const user = getUser();
             if (!user || !confirm('Clear all listening history?')) return;
             try {
-                await fetch(`/api/listening-history/user/${user.userId}`, {
-                    method: 'DELETE',
-                    headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
-                });
+                await api(`/api/listening-history/user/${user.userId}`, 'DELETE');
                 loadHistory();
                 showToast('History cleared');
             } catch (e) { showToast('Failed to clear history', 'error'); }
+        }
+
+        async function showAllHistory() {
+            const user = getUser();
+            if (!user) return;
+            const list = document.getElementById('allHistoryList');
+            list.innerHTML = '<p>Loading...</p>';
+            showModal('allHistoryModal');
+            try {
+                const data = await api(`/api/listening-history/user/${user.userId}`);
+                list.innerHTML = data && data.length
+                    ? data.map((h, i) => ui.songRow({ id: h.songId, title: h.songTitle, artistName: h.artistName, coverImage: h.coverImage }, i)).join('')
+                    : ui.empty('🎶', 'No history found.');
+            } catch (e) { list.innerHTML = ui.empty('⚠️', 'Error loading full history.'); }
         }
     </script>
 </body>
