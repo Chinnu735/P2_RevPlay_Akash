@@ -11,11 +11,12 @@
 <body>
 
     <div class="auth-page">
-        <div class="auth-card animate-slide">
+        <div class="auth-card">
             <div class="auth-logo">
-                <a href="/" class="logo" style="justify-content:center;"><span class="logo-mark"><span
-                            class="eq-bar"></span><span class="eq-bar"></span><span class="eq-bar"></span><span
-                            class="eq-bar"></span></span> RevPlay</a>
+                <a href="/" class="logo" style="justify-content:center;">
+                    <img th:src="@{/images/logo.png}" alt="Logo"
+                        style="width: 32px; height: 32px; border-radius: 4px; filter: invert(1);"> RevPlay
+                </a>
             </div>
 
             <div id="loginError" class="hidden"
@@ -28,12 +29,12 @@
                     <input type="text" id="loginIdentifier" class="form-control" placeholder="you@email.com" required>
                 </div>
                 <div class="form-group">
-                    <div style="display:flex;justify-content:space-between;align-items:baseline;">
-                        <label>Password</label>
-                        <a href="/forgot-password"
-                            style="font-size:0.75rem;color:var(--text-3);text-decoration:underline;">Forgot?</a>
-                    </div>
+                    <label>Password</label>
                     <input type="password" id="loginPassword" class="form-control" placeholder="••••••••" required>
+                    <div style="text-align:right;margin-top:0.4rem;">
+                        <a href="/forgot-password"
+                            style="font-size:0.75rem;color:var(--text-3);text-decoration:underline;">Forgot Password</a>
+                    </div>
                 </div>
                 <button type="submit" class="btn btn-primary" id="loginBtn">Sign In</button>
             </form>
@@ -48,27 +49,27 @@
     <script>
         async function handleLogin(e) {
             e.preventDefault();
-            const identifier = document.getElementById('loginIdentifier').value.trim();
-            const password = document.getElementById('loginPassword').value;
-            const errorBox = document.getElementById('loginError');
-            const btn = document.getElementById('loginBtn');
+            var identifier = document.getElementById('loginIdentifier').value.trim();
+            var password = document.getElementById('loginPassword').value;
+            var errorBox = document.getElementById('loginError');
+            var btn = document.getElementById('loginBtn');
 
             errorBox.classList.add('hidden');
             btn.textContent = 'Signing in…';
             btn.disabled = true;
 
-            const isEmail = identifier.includes('@');
-            const body = { password };
+            var isEmail = identifier.includes('@');
+            var body = { password: password };
             if (isEmail) body.email = identifier; else body.username = identifier;
 
             try {
-                const res = await fetch('/api/auth/login', {
+                var res = await fetch('/api/auth/login', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(body)
                 });
-                const apiRes = await res.json();
-                const data = apiRes.data || apiRes; // Support both raw AuthResponse and wrapped ApiResponse
+                var apiRes = await res.json();
+                var data = apiRes.data || apiRes;
 
                 if (res.ok && data.authenticated) {
                     localStorage.setItem('user', JSON.stringify(data));
@@ -78,7 +79,7 @@
                     errorBox.textContent = data.message || 'Invalid credentials';
                     errorBox.classList.remove('hidden');
                 }
-            } catch {
+            } catch (err) {
                 errorBox.textContent = 'Connection error. Try again.';
                 errorBox.classList.remove('hidden');
             }

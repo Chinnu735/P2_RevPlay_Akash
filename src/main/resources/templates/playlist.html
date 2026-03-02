@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Playlist — RevPlay</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+
+<body class="app-bg">
+
+    <nav class="navbar">
+        <a href="/home" class="logo">
+            <img th:src="@{/images/logo.png}" alt="Logo"
+                style="width: 32px; height: 32px; border-radius: 4px; filter: invert(1);"> RevPlay
+        </a>
+        <div class="nav-links" id="navLinks">
+            <a href="/home">Home</a>
+            <a href="/browse">Browse</a>
+            <a href="/playlists">Playlists</a>
+            <a href="/favorites">Favorites</a>
+            <a href="/browse" id="podcastsLink">Podcasts</a>
+            <a href="/artist-dashboard" id="dashboardLink">Dashboard</a>
+        </div>
+        <div class="nav-search">
+            <input type="text" placeholder="Search songs..."
+                onkeydown="if(event.key==='Enter') handleUniversalSearch(this.value)">
+        </div>
+        <div class="nav-actions"><a href="/profile" class="user-avatar" id="userAvatar">U</a></div>
+        <button class="menu-toggle" onclick="document.getElementById('navLinks').classList.toggle('open')">☰</button>
+    </nav>
+
+    <main class="page-content container">
+        <section class="section">
+            <div class="profile-header" style="border-bottom:none;">
+                <div class="profile-avatar" id="playlistIcon"
+                    style="border-radius:var(--radius);width:180px;height:180px;font-size:3.5rem;background:var(--bg-3);color:var(--text-4);">
+                    ♫</div>
+                <div class="profile-info">
+                    <span class="badge badge-accent" id="playlistPrivacy">PRIVATE</span>
+                    <h1 id="playlistName" style="font-size:2rem;">&nbsp;</h1>
+                    <p class="text-muted" style="font-size:0.85rem;" id="playlistDesc"></p>
+                    <div class="profile-meta" id="playlistMeta"><span>—</span></div>
+                    <div class="flex gap-1 mt-2">
+                        <button class="btn btn-primary btn-sm" onclick="playAll()">▶ Play All</button>
+                        <button class="btn btn-secondary btn-sm" id="followBtn" onclick="toggleFollow()">Follow</button>
+                        <button class="btn btn-ghost btn-sm" id="addSongsBtn" onclick="toggleAddSongs()"
+                            style="display:none;">+ Add Songs</button>
+                        <button class="btn btn-ghost btn-sm" id="deleteBtn" onclick="deletePlaylist()"
+                            style="display:none;">Delete</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="section" id="playlistAdder" style="display:none; padding-top: 0;">
+            <div
+                style="background:var(--bg-2); padding: 1.5rem; border-radius: var(--radius); border: 1px dashed var(--border-3);">
+                <h3 style="font-size: 1.1rem; margin-bottom: 0.5rem; margin-top:0;">Add Songs</h3>
+                <input type="text" id="songSearch" class="form-control"
+                    placeholder="Search for songs or artists to add..." oninput="searchSongsToAdd(event)">
+                <div id="searchResults" class="grid grid-3 mt-1"></div>
+            </div>
+        </section>
+
+        <section class="section">
+            <div id="songList"></div>
+        </section>
+    </main>
+
+    <div th:replace="~{fragments/footer :: footerBase}"></div>
+    <div th:replace="~{fragments/player :: playerBar}"></div>
+    <div th:replace="~{fragments/modals :: modals}"></div>
+
+    <script th:src="@{/js/app.js}"></script>
+    <script>
+        function initPage() {
+            const user = getUser();
+            loadPlaylist();
+        }
+
+        initPage();
+
+        async function loadPlaylist() {
+            const playlistId = window.location.pathname.split('/').pop();
+            const user = getUser();
+            try {
+                const p = await api(`/api/playlists/${playlistId}`);
+                document.getElementById('playlistName').textContent = p.name;
+                document.getElementById('playlistDesc').textContent = p.description || '';
+                document.getElementById('playlistPrivacy').textContent = (p.privacy || 'private').toUpperCase();
+                document.getElementById('playlistMeta').innerHTML = `<span>${p.userName || 'User'}</span>`;
+                document.title = `${p.name} — RevPlay`;
+
+                if (user && p.userId === user.userId) {
+                    document.getElementById('deleteBtn').style.display = 'inline-flex';
+                    document.getElementById('addSongsBtn').style.display = 'inline-flex';
+                }
+
+                const songs = await api(`/api/playlist-songs/playlist/${playlistId}`);
+                const list = document.getElementById('songList');
+                list.innerHTML = songs && songs.length
+                    ? songs.map((s, i) => {
+                        const ss = { id: s.songId, title: s.songTitle, artistName: s.artistName, coverImage: s.coverImage };
+                        let row = ui.songRow(ss, i);
+                        if (user && p.userId === user.userId) {
+                            row = row.replace('<div class="song-actions">',
+                                `<div class="song-actions" style="opacity:1;"><button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();removeSongFromPlaylist(${ss.id})">✕</button>`);
+                        }
+                        return row;
+                    }).join('')
+                    : ui.empty('🎶', 'No songs in this playlist.');
+            } catch (e) {
+                document.getElementById('songList').innerHTML = ui.empty('❌', 'Could not load playlist.');
+            }
+        }
+
+        async function removeSongFromPlaylist(songId) {
+            const playlistId = window.location.pathname.split('/').pop();
+            if (!confirm('Remove song?')) return;
+            try {
+                await fetch(`/api/playlist-songs/playlist/${playlistId}/song/${songId}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
+                });
+                showToast('Removed song');
+                loadPlaylist();
+            } catch (e) { showToast('Failed', 'error'); }
+        }
+
+        async function deletePlaylist() {
+            const playlistId = window.location.pathname.split('/').pop();
+            if (!confirm('Delete this playlist?')) return;
+            try {
+                await fetch(`/api/playlists/${playlistId}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
+                });
+                navigate('/playlists');
+            } catch (e) { showToast('Failed', 'error'); }
+        }
+
+        function toggleAddSongs() {
+            const adder = document.getElementById('playlistAdder');
+            adder.style.display = adder.style.display === 'none' ? 'block' : 'none';
+        }
+
+        let searchTimeoutId = null;
+        function searchSongsToAdd(e) {
+            clearTimeout(searchTimeoutId);
+            searchTimeoutId = setTimeout(async () => {
+                const query = e.target.value.trim();
+                const resEl = document.getElementById('searchResults');
+                if (query.length < 2) { resEl.innerHTML = ''; return; }
+                try {
+                    const results = await api(`/api/songs/search?title=${encodeURIComponent(query)}`);
+                    resEl.innerHTML = results && results.length
+                        ? results.slice(0, 6).map(s => `
+                            <div class="song-row" style="background:var(--bg-1); padding:0.5rem;">
+                                <div class="song-info" style="flex:1;"><div class="song-title">${s.title}</div><div class="song-artist" style="font-size:0.75rem;">${s.artistName}</div></div>
+                                <button class="btn btn-primary btn-sm" onclick="addSongToThisPlaylist(${s.id})" style="padding:0.25rem 0.5rem;min-width:auto;height:auto;">+ Add</button>
+                            </div>`).join('')
+                        : '<p class="text-muted" style="font-size:0.8rem;grid-column:1/-1;">No results.</p>';
+                } catch (err) { resEl.innerHTML = ''; }
+            }, 500);
+        }
+
+        async function addSongToThisPlaylist(songId) {
+            const playlistId = window.location.pathname.split('/').pop();
+            try {
+                await api('/api/playlist-songs', 'POST', {
+                    playlistId: parseInt(playlistId),
+                    songId: songId,
+                    orderIndex: 0
+                });
+                showToast('Added!');
+                document.getElementById('songSearch').value = '';
+                document.getElementById('searchResults').innerHTML = '';
+                loadPlaylist();
+            } catch (e) { showToast('Failed (Already in?)', 'error'); }
+        }
+
+        function playAll() { showToast('Playing...'); }
+        function toggleFollow() { showToast('Followed!'); }
+    </script>
+</body>
+
+</html>

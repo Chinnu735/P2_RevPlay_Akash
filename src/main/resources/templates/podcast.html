@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Podcast — RevPlay</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+
+<body class="">
+
+    <nav class="navbar">
+        <a href="/home" class="logo">
+            <img th:src="@{/images/logo.png}" alt="Logo"
+                style="width: 32px; height: 32px; border-radius: 4px; filter: invert(1);"> RevPlay
+        </a>
+        <div class="nav-links" id="navLinks">
+            <a href="/home">Home</a>
+            <a href="/browse">Browse</a>
+            <a href="/playlists">Playlists</a>
+            <a href="/favorites">Favorites</a>
+            <a href="/browse" id="podcastsLink">Podcasts</a>
+            <a href="/artist-dashboard" id="dashboardLink">Dashboard</a>
+        </div>
+        <div class="nav-search">
+            <input type="text" placeholder="Search songs..."
+                onkeydown="if(event.key==='Enter') handleUniversalSearch(this.value)">
+        </div>
+        <div class="nav-actions"><a href="/profile" class="user-avatar" id="userAvatar">U</a></div>
+        <button class="menu-toggle" onclick="document.getElementById('navLinks').classList.toggle('open')">☰</button>
+    </nav>
+
+    <main class="page-content container">
+
+        <section class="section" style="display:flex;gap:2rem;align-items:flex-end;margin-bottom:2rem;">
+            <div id="podcastCover"
+                style="width:200px;height:200px;background:var(--bg-3);border-radius:var(--radius-md);flex-shrink:0;box-shadow:var(--shadow-lg);overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:4rem;color:var(--text-4);">
+                🎙️</div>
+            <div>
+                <span class="badge badge-accent" style="margin-bottom:0.5rem;display:inline-block;">PODCAST</span>
+                <h1 id="podcastTitle" style="font-size:3rem;margin:0 0 0.5rem;line-height:1.1;">&nbsp;</h1>
+                <p id="podcastArtist" style="font-size:1.1rem;color:var(--text-2);margin:0 0 1rem;"></p>
+                <div id="podcastDesc" class="text-muted" style="font-size:0.9rem;max-width:600px;"></div>
+                <div style="margin-top:1.5rem;display:flex;gap:1rem;align-items:center;">
+                    <button class="btn btn-primary" style="border-radius:30px;padding:0.6rem 2rem;font-weight:600;"
+                        onclick="playFirstEpisode()">Play First Episode</button>
+                    <button id="addEpisodeBtn" class="btn btn-secondary hidden" onclick="showModal('addEpisodeModal')">+
+                        Add Episode</button>
+                </div>
+            </div>
+        </section>
+
+        <section class="section">
+            <h3 style="margin-bottom:1rem;font-size:1.25rem;">Episodes</h3>
+            <div id="episodesList" style="display:flex;flex-direction:column;gap:0.5rem;"></div>
+        </section>
+
+    </main>
+
+    <!-- Add Episode Modal -->
+    <div class="modal-backdrop" id="addEpisodeModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>Upload Episode</h3><button class="modal-close" onclick="hideModal('addEpisodeModal')">✕</button>
+            </div>
+            <form onsubmit="addEpisode(event)">
+                <div class="form-group"><label>Title</label><input type="text" id="epTitle" class="form-control"
+                        placeholder="Episode Title" required></div>
+                <div class="form-group"><label>Description</label><textarea id="epDesc" class="form-control" rows="3"
+                        placeholder="What is this episode about?"></textarea></div>
+                <div class="form-group"><label>Release Date</label><input type="date" id="epDate" class="form-control"
+                        required></div>
+                <div class="form-group">
+                    <label>Audio File</label>
+                    <div id="fileUploadMode">
+                        <input type="file" id="epFile" class="form-control" accept=".mp3,.wav,.ogg,.m4a"
+                            style="padding:0.5rem;">
+                        <p style="font-size:0.75rem;color:var(--text-3);margin-top:0.3rem;">Max 100MB · <a href="#"
+                                onclick="toggleUploadMode(event)" style="color:var(--accent);">Or paste URL</a></p>
+                    </div>
+                    <div id="urlUploadMode" class="hidden">
+                        <input type="url" id="epUrl" class="form-control" placeholder="https://...">
+                        <p style="font-size:0.75rem;color:var(--text-3);margin-top:0.3rem;"><a href="#"
+                                onclick="toggleUploadMode(event)" style="color:var(--accent);">← Upload a file
+                                instead</a></p>
+                    </div>
+                    <div id="uploadProgress" class="hidden" style="margin-top:0.5rem;">
+                        <div
+                            style="background:var(--bg-3);border-radius:var(--radius-full);height:6px;overflow:hidden;">
+                            <div id="uploadBar"
+                                style="height:100%;background:var(--accent);width:0%;transition:width 0.3s;"></div>
+                        </div>
+                        <p style="font-size:0.7rem;color:var(--text-3);margin-top:0.2rem;" id="uploadStatus">Uploading…
+                        </p>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary w-full">Upload</button>
+            </form>
+        </div>
+    </div>
+
+    <div th:replace="~{fragments/footer :: footerBase}"></div>
+    <div th:replace="~{fragments/player :: playerBar}"></div>
+    <div th:replace="~{fragments/modals :: modals}"></div>
+
+    <script th:src="@{/js/app.js}"></script>
+    <script>
+        let episodesData = [];
+        let podcastData = null;
+
+        function initPage() {
+            const user = getUser();
+            if (!user) return window.location.replace('/login');
+            loadPodcast();
+        }
+
+        initPage();
+
+        async function loadPodcast() {
+            const podcastId = window.location.pathname.split('/').pop();
+            const user = getUser();
+            try {
+                podcastData = await api(`/api/podcasts/${podcastId}`);
+                document.getElementById('podcastTitle').textContent = podcastData.title;
+                document.getElementById('podcastArtist').textContent = podcastData.artistName || 'Creator';
+                document.getElementById('podcastDesc').textContent = podcastData.description || '';
+
+                const coverEl = document.getElementById('podcastCover');
+                if (podcastData.coverImage) {
+                    coverEl.innerHTML = `<img src="${podcastData.coverImage}" style="width:100%;height:100%;object-fit:cover;">`;
+                } else {
+                    coverEl.innerHTML = '🎙️';
+                }
+
+                if (user && user.role === 'artist' && user.artistProfileId == podcastData.artistId) {
+                    document.getElementById('addEpisodeBtn').classList.remove('hidden');
+                }
+
+                loadEpisodes();
+            } catch (err) {
+                document.getElementById('podcastTitle').textContent = 'Not Found';
+                document.getElementById('episodesList').innerHTML = ui.empty('🎙️', 'Podcast not found.');
+            }
+        }
+
+        async function loadEpisodes() {
+            const podcastId = window.location.pathname.split('/').pop();
+            const user = getUser();
+            try {
+                episodesData = await api(`/api/podcast-episodes/podcast/${podcastId}`);
+                const list = document.getElementById('episodesList');
+                if (!episodesData || !episodesData.length) {
+                    list.innerHTML = ui.empty('🎙️', 'No episodes yet.');
+                    return;
+                }
+                const isOwner = user && user.role === 'artist' && user.artistProfileId == podcastData.artistId;
+                list.innerHTML = episodesData.map((ep, i) => {
+                    const s = { id: ep.id + 100000, title: ep.title, artistName: ep.releaseDate || 'Unknown Date', audioUrl: ep.audioUrl };
+                    let row = ui.songRow(s, i);
+                    row = row.replace('onclick="playSong', 'onclick="playEpisode'); // Use custom play for episodes
+                    if (isOwner) {
+                        row = row.replace('<div class="song-actions">',
+                            `<div class="song-actions" style="opacity:1;"><button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();deleteEpisode(${ep.id})">✕</button>`);
+                    }
+                    return row;
+                }).join('');
+            } catch (err) { list.innerHTML = ui.empty('⚠️', 'Could not load episodes.'); }
+        }
+
+        function playEpisode(epId) {
+            const ep = episodesData.find(e => e.id + 100000 === epId);
+            if (!ep || !ep.audioUrl) return showToast('Audio not available', 'error');
+            playSong(ep.id + 100000, ep.title, podcastData ? podcastData.title : 'Podcast', ep.audioUrl, podcastData ? podcastData.coverImage : null);
+        }
+
+        function playFirstEpisode() {
+            if (episodesData.length) playEpisode(episodesData[0].id + 100000);
+            else showToast('No episodes', 'error');
+        }
+
+        function toggleUploadMode(e) {
+            e.preventDefault();
+            document.getElementById('fileUploadMode').classList.toggle('hidden');
+            document.getElementById('urlUploadMode').classList.toggle('hidden');
+        }
+
+        async function addEpisode(e) {
+            e.preventDefault();
+            const podcastId = window.location.pathname.split('/').pop();
+            const btn = e.target.querySelector('button[type=submit]');
+            btn.disabled = true; btn.textContent = 'Uploading…';
+            try {
+                let audioUrl = '';
+                const fileInput = document.getElementById('epFile');
+                const urlInput = document.getElementById('epUrl');
+                const isFileMode = !document.getElementById('fileUploadMode').classList.contains('hidden');
+
+                if (isFileMode && fileInput.files.length > 0) {
+                    const formData = new FormData();
+                    formData.append('file', fileInput.files[0]);
+                    document.getElementById('uploadProgress').classList.remove('hidden');
+                    const res = await fetch('/api/upload/song', {
+                        method: 'POST', body: formData,
+                        headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
+                    });
+                    const data = await res.json();
+                    if (!res.ok) throw new Error(data.error || 'Upload failed');
+                    audioUrl = data.url;
+                } else { audioUrl = urlInput.value.trim(); }
+
+                if (!audioUrl) throw new Error('No audio URL');
+
+                await api('/api/podcast-episodes', 'POST', {
+                    podcastId: podcastId,
+                    title: document.getElementById('epTitle').value.trim(),
+                    description: document.getElementById('epDesc').value.trim(),
+                    audioUrl: audioUrl,
+                    releaseDate: document.getElementById('epDate').value
+                });
+                hideModal('addEpisodeModal');
+                loadEpisodes();
+                showToast('Uploaded!');
+                e.target.reset();
+            } catch (err) { showToast(err.message, 'error'); }
+            btn.disabled = false; btn.textContent = 'Upload';
+        }
+
+        async function deleteEpisode(id) {
+            if (!confirm('Delete episode?')) return;
+            try {
+                await api(`/api/podcast-episodes/${id}`, 'DELETE');
+                showToast('Deleted');
+                loadEpisodes();
+            } catch (err) { showToast('Failed', 'error'); }
+        }
+    </script>
+</body>
+
+</html>

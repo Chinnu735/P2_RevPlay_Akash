@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Artist — RevPlay</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+
+<body class="app-bg">
+
+    <nav class="navbar">
+        <a href="/home" class="logo">
+            <span class="logo-mark"><span class="eq-bar"></span><span class="eq-bar"></span><span
+                    class="eq-bar"></span><span class="eq-bar"></span></span> RevPlay
+        </a>
+        <div class="nav-links" id="navLinks">
+            <a href="/home">Home</a>
+            <a href="/browse">Browse</a>
+            <a href="/playlists">Playlists</a>
+            <a href="/favorites">Favorites</a>
+            <a href="/browse" id="podcastsLink">Podcasts</a>
+            <a href="/artist-dashboard" id="dashboardLink">Dashboard</a>
+        </div>
+        <div class="nav-search">
+            <input type="text" placeholder="Search songs..."
+                onkeydown="if(event.key==='Enter') handleUniversalSearch(this.value)">
+        </div>
+        <div class="nav-actions"><a href="/profile" class="user-avatar" id="userAvatar">U</a></div>
+        <button class="menu-toggle" onclick="document.getElementById('navLinks').classList.toggle('open')">☰</button>
+    </nav>
+
+    <div class="artist-banner page-content">
+        <div class="artist-banner-content">
+            <span class="badge badge-accent">Artist</span>
+            <h1 id="artistName">&nbsp;</h1>
+            <p class="text-muted" id="artistGenre" style="margin-top:0.25rem;"></p>
+        </div>
+    </div>
+
+    <main class="container">
+        <div class="flex gap-1 mt-3 mb-3" id="socialLinks" style="flex-wrap:wrap;"></div>
+        <div class="tabs">
+            <button class="tab active" onclick="showTab('songs', this)">Songs</button>
+            <button class="tab" onclick="showTab('albums', this)">Albums</button>
+        </div>
+        <div id="songsTab">
+            <div id="artistSongs"></div>
+        </div>
+        <div id="albumsTab" class="hidden">
+            <div class="grid grid-4" id="artistAlbums"></div>
+        </div>
+    </main>
+
+    <div th:replace="~{fragments/footer :: footerBase}"></div>
+    <div th:replace="~{fragments/player :: playerBar}"></div>
+    <div th:replace="~{fragments/modals :: modals}"></div>
+
+    <script th:src="@{/js/app.js}"></script>
+    <script>
+        function initPage() {
+            const user = getUser();
+            loadArtist();
+        }
+
+        initPage();
+
+        async function loadArtist() {
+            const artistId = window.location.pathname.split('/').pop();
+            try {
+                const d = await api(`/api/analytics/artist/${artistId}/page`);
+                document.getElementById('artistName').textContent = d.artistName;
+                document.getElementById('artistGenre').textContent = d.genreName || '';
+                document.title = `${d.artistName} — RevPlay`;
+
+                const links = [
+                    { url: d.instagramLink, label: 'Instagram' },
+                    { url: d.youtubeLink, label: 'YouTube' }
+                ];
+                document.getElementById('socialLinks').innerHTML = links
+                    .filter(s => s.url)
+                    .map(s => `<a href="${s.url}" target="_blank" class="btn btn-secondary btn-sm">${s.label}</a>`)
+                    .join('');
+
+                const songsEl = document.getElementById('artistSongs');
+                songsEl.innerHTML = d.songs && d.songs.length
+                    ? d.songs.map((s, i) => ui.songRow(s, i)).join('')
+                    : ui.empty('🎵', 'No songs yet.');
+
+                const albumsEl = document.getElementById('artistAlbums');
+                albumsEl.innerHTML = d.albums && d.albums.length
+                    ? d.albums.map(a => ui.card(a, 'album'))
+                    : ui.empty('◉', 'No albums.');
+            } catch (e) {
+                document.getElementById('artistSongs').innerHTML = ui.empty('❌', 'Could not load artist.');
+            }
+        }
+
+        function showTab(tab, el) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            el.classList.add('active');
+            document.getElementById('songsTab').classList.toggle('hidden', tab !== 'songs');
+            document.getElementById('albumsTab').classList.toggle('hidden', tab !== 'albums');
+        }
+    </script>
+</body>
+
+</html>

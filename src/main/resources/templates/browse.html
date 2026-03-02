@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Browse — RevPlay</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+
+<body>
+
+    <nav class="navbar">
+        <a href="/home" class="logo">
+            <img th:src="@{/images/logo.png}" alt="Logo"
+                style="width: 32px; height: 32px; border-radius: 4px; filter: invert(1);"> RevPlay
+        </a>
+        <div class="nav-links" id="navLinks">
+            <a href="/home">Home</a>
+            <a href="/browse" class="active">Browse</a>
+            <a href="/playlists">Playlists</a>
+            <a href="/favorites">Favorites</a>
+            <a href="/browse" id="podcastsLink">Podcasts</a>
+            <a href="/artist-dashboard" id="dashboardLink">Dashboard</a>
+        </div>
+        <div class="nav-search">
+            <input type="text" placeholder="Search songs..."
+                onkeydown="if(event.key==='Enter') handleUniversalSearch(this.value)">
+        </div>
+        <div class="nav-actions"><a href="/profile" class="user-avatar" id="userAvatar">U</a></div>
+        <button class="menu-toggle" onclick="document.getElementById('navLinks').classList.toggle('open')">☰</button>
+    </nav>
+
+    <main class="page-content container">
+
+        <section class="section">
+            <div class="section-header">
+                <h2>Trending Now</h2>
+            </div>
+            <div class="grid grid-5" id="trendingNowList"></div>
+        </section>
+
+        <section class="section">
+            <div class="section-header">
+                <h2>Albums</h2>
+            </div>
+            <div class="grid grid-4" id="albumsGrid"></div>
+        </section>
+
+        <section class="section">
+            <div class="section-header">
+                <h2>Podcasts</h2>
+            </div>
+            <div class="grid grid-4" id="podcastsGrid"></div>
+        </section>
+
+    </main>
+
+    <div th:replace="~{fragments/footer :: footerBase}"></div>
+    <div th:replace="~{fragments/player :: playerBar}"></div>
+    <div th:replace="~{fragments/modals :: modals}"></div>
+
+    <script th:src="@{/js/app.js}"></script>
+    <script>
+        function initPage() {
+            const user = getUser();
+            if (!user) return window.location.replace('/login');
+
+            loadTrending();
+            loadAlbums();
+            loadPodcasts();
+        }
+
+        initPage();
+
+        async function loadTrending() {
+            const grid = document.getElementById('trendingNowList');
+            try {
+                const data = await api('/api/songs/recent');
+                grid.innerHTML = data && data.length
+                    ? data.slice(0, 5).map(s => ui.card(s, 'song')).join('')
+                    : ui.empty('🎵', 'No trending songs yet.');
+            } catch (e) { grid.innerHTML = ui.empty('❌', 'Failed to load trending.'); }
+        }
+
+        async function loadAlbums() {
+            const grid = document.getElementById('albumsGrid');
+            try {
+                const data = await api('/api/albums');
+                grid.innerHTML = data && data.length
+                    ? data.map(a => ui.card(a, 'album')).join('')
+                    : ui.empty('◉', 'No albums found.');
+            } catch (e) { grid.innerHTML = ui.empty('⚠️', 'Error loading albums.'); }
+        }
+
+        async function loadPodcasts() {
+            const grid = document.getElementById('podcastsGrid');
+            try {
+                const data = await api('/api/podcasts');
+                grid.innerHTML = data && data.length
+                    ? data.map(p => ui.card(p, 'podcast')).join('')
+                    : ui.empty('🎙️', 'No podcasts found.');
+            } catch (e) { grid.innerHTML = ui.empty('❌', 'Error loading podcasts.'); }
+        }
+    </script>
+</body>
+
+</html>

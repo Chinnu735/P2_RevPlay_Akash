@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profile — RevPlay</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+
+<body class="">
+
+    <nav class="navbar">
+        <a href="/home" class="logo">
+            <img th:src="@{/images/logo.png}" alt="Logo"
+                style="width: 32px; height: 32px; border-radius: 4px; filter: invert(1);"> RevPlay
+        </a>
+        <div class="nav-links" id="navLinks">
+            <a href="/home">Home</a>
+            <a href="/browse">Browse</a>
+            <a href="/playlists">Playlists</a>
+            <a href="/favorites">Favorites</a>
+            <a href="/browse" id="podcastsLink">Podcasts</a>
+            <a href="/artist-dashboard" id="dashboardLink">Dashboard</a>
+        </div>
+        <div class="nav-search">
+            <input type="text" placeholder="Search songs..."
+                onkeydown="if(event.key==='Enter') handleUniversalSearch(this.value)">
+        </div>
+        <div class="nav-actions"><a href="/profile" class="user-avatar active" id="userAvatar">U</a></div>
+        <button class="menu-toggle" onclick="document.getElementById('navLinks').classList.toggle('open')">☰</button>
+    </nav>
+
+    <main class="page-content container">
+        <div id="artistBanner"
+            style="display:none; height: 160px; background-size: cover; background-position: center; border-radius: var(--radius-md) var(--radius-md) 0 0; margin-top: 1rem; position: relative;">
+        </div>
+
+        <section class="section" style="padding-top:1rem;">
+            <div class="profile-header">
+                <div class="profile-avatar" id="profileAvatar">U</div>
+                <div class="profile-info">
+                    <h1 id="profileName" style="font-size:2rem;">Loading…</h1>
+                    <p class="text-muted" style="font-size:0.85rem;" id="profileEmail"></p>
+                    <p id="profileBioDisplay" style="font-size:0.95rem;margin:0.5rem 0;color:var(--text-1);"></p>
+                    <div id="socialLinksDisplay" style="display:flex;gap:0.75rem;margin:0.5rem 0;"></div>
+                    <div class="profile-meta">
+                        <span class="badge badge-accent" id="profileRole">USER</span>
+                        <span id="profileJoined"></span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <div class="tabs" style="margin-bottom:1rem;">
+            <button class="tab active" onclick="showProfileTab('profile', this)">Profile Details</button>
+            <button class="tab" onclick="showProfileTab('history', this)">Listening History</button>
+        </div>
+
+        <div id="tabProfile">
+            <section class="section">
+                <div class="dash-grid">
+                    <div class="stat-card">
+                        <div class="stat-label">Playlists</div>
+                        <div class="stat-value" id="statPlaylists">—</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Favorites</div>
+                        <div class="stat-value" id="statFavorites">—</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Listened</div>
+                        <div class="stat-value" id="statListening">—</div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="section" style="max-width:500px; padding-bottom: 3rem;">
+                <h2 class="mb-2">Edit Profile</h2>
+                <form id="profileForm" onsubmit="updateProfile(event)">
+                    <div class="form-group"><label>Display Name</label><input type="text" id="editDisplayName"
+                            class="form-control" placeholder="Name"></div>
+                    <div class="form-group"><label>Bio</label><textarea id="editBio" class="form-control" rows="3"
+                            placeholder="About you"></textarea></div>
+                    <div class="form-group">
+                        <label>Profile Picture</label>
+                        <div style="display:flex;gap:0.75rem;align-items:center;">
+                            <input type="file" id="editPictureFile" class="form-control" accept="image/*"
+                                style="padding:0.5rem;">
+                        </div>
+                    </div>
+                    <div class="form-group" id="bannerUploadGroup">
+                        <label>Banner Image</label>
+                        <div style="display:flex;gap:0.75rem;align-items:center;">
+                            <input type="file" id="editBannerFile" class="form-control" accept="image/*"
+                                style="padding:0.5rem;">
+                        </div>
+                    </div>
+                    <div class="auth-divider">Security</div>
+                    <div class="form-group">
+                        <label>New Password (Optional)</label>
+                        <input type="password" id="editPassword" class="form-control"
+                            placeholder="Leave blank to keep current">
+                    </div>
+                    <button type="submit" class="btn btn-primary" id="saveProfileBtn">Save Changes</button>
+                </form>
+
+                <div style="margin-top:3rem; padding-top:2rem; border-top: 1px solid var(--border-3);">
+                    <div style="display:flex; gap:1rem;">
+                        <button class="btn btn-secondary" onclick="logout()">Sign Out</button>
+                        <button class="btn btn-ghost" style="color:var(--text-4);font-size:0.8rem;"
+                            onclick="deleteAccount()">Delete Account</button>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <div id="tabHistory" class="hidden">
+            <section class="section">
+                <div class="section-header">
+                    <h2>Listening History</h2>
+                    <button class="btn btn-ghost btn-sm" onclick="clearProfileHistory()">Clear History</button>
+                </div>
+                <div class="grid grid-5" id="profileHistoryList">
+                    <div class="empty-state" style="grid-column:1/-1;">
+                        <div class="empty-icon">🎶</div>
+                        <p>No listening history yet.</p>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <div th:replace="~{fragments/footer :: footerBase}"></div>
+    <script th:src="@{/js/app.js}"></script>
+    <script>
+        function initPage() {
+            const user = getUser();
+            if (!user) return window.location.replace('/login');
+
+            // Initial render from local data
+            document.getElementById('profileName').textContent = user.displayName || user.username || 'User';
+            document.getElementById('profileEmail').textContent = user.email || '';
+            document.getElementById('profileRole').textContent = (user.role || 'user').toUpperCase();
+            document.getElementById('profileAvatar').textContent = (user.username || 'U').charAt(0).toUpperCase();
+
+            loadStats();
+            loadProfile();
+            loadProfileHistory();
+        }
+
+        initPage();
+
+        function showProfileTab(tab, el) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            el.classList.add('active');
+            document.getElementById('tabProfile').classList.toggle('hidden', tab !== 'profile');
+            document.getElementById('tabHistory').classList.toggle('hidden', tab !== 'history');
+        }
+
+        async function loadProfileHistory() {
+            const user = getUser();
+            const grid = document.getElementById('profileHistoryList');
+            try {
+                const data = await api(`/api/listening-history/user/${user.userId}/recent?limit=25`);
+                grid.innerHTML = data && data.length ? data.map(h => ui.card(h, 'song')).join('') : ui.empty('🎶', 'No history yet.');
+            } catch (e) { grid.innerHTML = ui.empty('⚠️', 'Failed to load history.'); }
+        }
+
+        async function clearProfileHistory() {
+            const user = getUser();
+            if (!user || !confirm('Clear all listening history?')) return;
+            try {
+                await fetch(`/api/listening-history/user/${user.userId}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
+                });
+                loadProfileHistory();
+                showToast('History cleared');
+            } catch (e) { showToast('Failed', 'error'); }
+        }
+
+        async function loadStats() {
+            const user = getUser();
+            try {
+                const d = await api(`/api/analytics/user/${user.userId}/stats`);
+                document.getElementById('statPlaylists').textContent = d.totalPlaylists;
+                document.getElementById('statFavorites').textContent = d.totalFavorites;
+                document.getElementById('statListening').textContent = d.totalListeningCount;
+            } catch (e) { }
+        }
+
+        let existingProfilePicture = '';
+        let existingBannerImage = '';
+
+        async function loadProfile() {
+            const user = getUser();
+            try {
+                const d = await api(`/api/users/${user.userId}`);
+                document.getElementById('editDisplayName').value = d.displayName || '';
+                document.getElementById('editBio').value = d.bio || '';
+                document.getElementById('profileBioDisplay').textContent = d.bio || '';
+                existingProfilePicture = d.profilePicture || '';
+
+                if (existingProfilePicture) {
+                    document.getElementById('profileAvatar').innerHTML = `<img src="${existingProfilePicture}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
+                }
+
+                if (user.role === 'artist' && user.artistProfileId) {
+                    const ad = await api(`/api/artists/${user.artistProfileId}`);
+                    existingBannerImage = ad.bannerImage || '';
+                    if (existingBannerImage) {
+                        const bannerEl = document.getElementById('artistBanner');
+                        bannerEl.style.display = 'block';
+                        bannerEl.style.backgroundImage = `url('${existingBannerImage}')`;
+                    }
+                    let socialHtml = '';
+                    if (ad.instagramLink) socialHtml += `<a href="${ad.instagramLink}" target="_blank" style="color:var(--text-3);font-size:1.2rem;text-decoration:none;">📷</a>`;
+                    if (ad.youtubeLink) socialHtml += `<a href="${ad.youtubeLink}" target="_blank" style="color:var(--text-3);font-size:1.2rem;text-decoration:none;">📺</a>`;
+                    document.getElementById('socialLinksDisplay').innerHTML = socialHtml;
+                }
+            } catch (e) { }
+        }
+
+        async function updateProfile(e) {
+            e.preventDefault();
+            const user = getUser();
+            const btn = document.getElementById('saveProfileBtn');
+            btn.disabled = true; btn.textContent = 'Saving...';
+
+            try {
+                const picFile = document.getElementById('editPictureFile');
+                if (picFile.files.length > 0) {
+                    const formData = new FormData();
+                    formData.append('file', picFile.files[0]);
+                    const upRes = await fetch('/api/upload/profile-photo', {
+                        method: 'POST', body: formData,
+                        headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
+                    });
+                    if (upRes.ok) { const ud = await upRes.json(); existingProfilePicture = ud.url; }
+                }
+
+                const banFile = document.getElementById('editBannerFile');
+                if (banFile && banFile.files.length > 0) {
+                    const fd = new FormData();
+                    fd.append('file', banFile.files[0]);
+                    const banRes = await fetch('/api/upload/banner', {
+                        method: 'POST', body: fd,
+                        headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
+                    });
+                    if (banRes.ok) {
+                        const bd = await banRes.json();
+                        existingBannerImage = bd.url;
+                        const bannerEl = document.getElementById('artistBanner');
+                        bannerEl.style.display = 'block';
+                        bannerEl.style.backgroundImage = `url('${existingBannerImage}')`;
+                    }
+                }
+
+                const pw = document.getElementById('editPassword').value;
+                const updatedData = {
+                    email: user.email,
+                    username: user.username,
+                    password: pw || '',
+                    role: user.role,
+                    displayName: document.getElementById('editDisplayName').value,
+                    bio: document.getElementById('editBio').value,
+                    profilePicture: existingProfilePicture
+                };
+
+                await api(`/api/users/${user.userId}`, 'PUT', updatedData);
+
+                // Update UI immediately
+                document.getElementById('profileName').textContent = updatedData.displayName || user.username;
+                document.getElementById('profileBioDisplay').textContent = updatedData.bio;
+                if (existingProfilePicture) {
+                    document.getElementById('profileAvatar').innerHTML = `<img src="${existingProfilePicture}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
+                }
+
+                localStorage.setItem('user', JSON.stringify(Object.assign({}, user, {
+                    displayName: updatedData.displayName,
+                    profilePicture: existingProfilePicture
+                })));
+
+                document.getElementById('editPassword').value = '';
+                showToast('Updated successfully!');
+            } catch (e) { showToast('Failed to save', 'error'); }
+            btn.disabled = false; btn.textContent = 'Save Changes';
+        }
+
+        async function deleteAccount() {
+            const user = getUser();
+            if (!user || !confirm('WARNING: THIS IS PERMANENT. Are you absolutely sure?')) return;
+            try {
+                await api(`/api/users/${user.userId}`, 'DELETE');
+                alert('Account deleted.');
+                logout();
+            } catch (e) { showToast('Failed to delete account', 'error'); }
+        }
+
+        function logout() {
+            localStorage.removeItem('user');
+            localStorage.removeItem('token');
+            window.location.href = '/login';
+        }
+    </script>
+</body>
+
+</html>

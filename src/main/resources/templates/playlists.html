@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Playlists — RevPlay</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+
+<body>
+
+    <nav class="navbar">
+        <a href="/home" class="logo">
+            <img th:src="@{/images/logo.png}" alt="Logo"
+                style="width: 32px; height: 32px; border-radius: 4px; filter: invert(1);"> RevPlay
+        </a>
+        <div class="nav-links" id="navLinks">
+            <a href="/home">Home</a>
+            <a href="/browse">Browse</a>
+            <a href="/playlists" class="active">Playlists</a>
+            <a href="/favorites">Favorites</a>
+            <a href="/browse" id="podcastsLink">Podcasts</a>
+            <a href="/artist-dashboard" id="dashboardLink">Dashboard</a>
+        </div>
+        <div class="nav-search">
+            <input type="text" placeholder="Search songs..."
+                onkeydown="if(event.key==='Enter') handleUniversalSearch(this.value)">
+        </div>
+        <div class="nav-actions"><a href="/profile" class="user-avatar" id="userAvatar">U</a></div>
+        <button class="menu-toggle" onclick="document.getElementById('navLinks').classList.toggle('open')">☰</button>
+    </nav>
+
+    <main class="page-content container">
+
+        <section class="section" style="padding-top: 1rem;">
+            <div class="section-header">
+                <h2>My Playlists</h2>
+                <button class="btn btn-primary btn-sm" onclick="showModal('createPlaylistModal')">+ New
+                    Playlist</button>
+            </div>
+            <div class="grid grid-4" id="myPlaylistsGrid">
+                <div class="empty-state" style="grid-column:1/-1;">Loading your playlists…</div>
+            </div>
+        </section>
+
+        <section class="section">
+            <div class="section-header">
+                <h2>Public Playlists</h2>
+            </div>
+            <div class="grid grid-4" id="publicPlaylistsGrid">
+                <div class="empty-state" style="grid-column:1/-1;">Loading public playlists…</div>
+            </div>
+        </section>
+
+        <section class="section">
+            <div class="section-header">
+                <h2>Following Playlists</h2>
+            </div>
+            <div class="grid grid-4" id="followingPlaylistsGrid">
+                <div class="empty-state" style="grid-column:1/-1;">Loading followed playlists…</div>
+            </div>
+        </section>
+
+    </main>
+
+    <div th:replace="~{fragments/footer :: footerBase}"></div>
+    <div th:replace="~{fragments/player :: playerBar}"></div>
+    <div th:replace="~{fragments/modals :: modals}"></div>
+
+    <script th:src="@{/js/app.js}"></script>
+    <script>
+        function initPage() {
+            const user = getUser();
+            if (!user) return window.location.replace('/login');
+
+            loadMyPlaylists();
+            loadPublicPlaylists();
+            loadFollowingPlaylists();
+        }
+
+        initPage();
+
+        async function loadMyPlaylists() {
+            const user = getUser();
+            const grid = document.getElementById('myPlaylistsGrid');
+            try {
+                const data = await api(`/api/playlists/user/${user.userId}`);
+                grid.innerHTML = data && data.length
+                    ? data.map(p => ui.card({ ...p, title: p.name, artistName: p.privacy || 'private' }, 'album').replace('/album/', '/playlist/'))
+                    : ui.empty('📋', 'No playlists yet. Create your first one!');
+            } catch (e) { grid.innerHTML = ui.empty('❌', 'Error loading your playlists.'); }
+        }
+
+        async function loadPublicPlaylists() {
+            const grid = document.getElementById('publicPlaylistsGrid');
+            try {
+                const data = await api('/api/playlists/public');
+                grid.innerHTML = data && data.length
+                    ? data.map(p => ui.card({ ...p, title: p.name, artistName: (p.username || 'User') + ' · ' + (p.privacy || 'public') }, 'album').replace('/album/', '/playlist/'))
+                    : ui.empty('📋', 'No public playlists found.');
+            } catch (e) { grid.innerHTML = ui.empty('⚠️', 'Error loading public playlists.'); }
+        }
+
+        async function loadFollowingPlaylists() {
+            const user = getUser();
+            const grid = document.getElementById('followingPlaylistsGrid');
+            try {
+                const data = await api(`/api/playlist-followers/user/${user.userId}`);
+                grid.innerHTML = data && data.length
+                    ? data.map(p => {
+                        const pid = p.playlistId || p.id;
+                        const pname = p.playlistName || p.name || 'Playlist';
+                        return ui.card({ id: pid, title: pname, artistName: 'Followed' }, 'album').replace('/album/', '/playlist/');
+                    })
+                    : ui.empty('★', 'You are not following any playlists.');
+            } catch (e) { grid.innerHTML = ui.empty('⚠️', 'Error loading followed playlists.'); }
+        }
+    </script>
+</body>
+
+</html>

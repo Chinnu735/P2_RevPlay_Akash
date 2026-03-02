@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Favorites — RevPlay</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+
+<body class="">
+
+    <nav class="navbar">
+        <a href="/home" class="logo">
+            <img th:src="@{/images/logo.png}" alt="Logo"
+                style="width: 32px; height: 32px; border-radius: 4px; filter: invert(1);"> RevPlay
+        </a>
+        <div class="nav-links" id="navLinks">
+            <a href="/home">Home</a>
+            <a href="/browse">Browse</a>
+            <a href="/playlists">Playlists</a>
+            <a href="/favorites" class="active">Favorites</a>
+            <a href="/browse" id="podcastsLink">Podcasts</a>
+            <a href="/artist-dashboard" id="dashboardLink">Dashboard</a>
+        </div>
+        <div class="nav-search">
+            <input type="text" placeholder="Search songs..."
+                onkeydown="if(event.key==='Enter') handleUniversalSearch(this.value)">
+        </div>
+        <div class="nav-actions"><a href="/profile" class="user-avatar" id="userAvatar">U</a></div>
+        <button class="menu-toggle" onclick="document.getElementById('navLinks').classList.toggle('open')">☰</button>
+    </nav>
+
+    <main class="page-content container">
+
+        <section class="section">
+            <h1 style="font-size:2rem;margin-bottom:0.5rem;">Your Favorites</h1>
+            <p class="text-muted" style="font-size:0.85rem;">Tracks you've loved</p>
+        </section>
+
+        <section class="section">
+            <div id="favoritesList" style="display:flex;flex-direction:column;gap:0.5rem;">
+                <div class="empty-state">
+                    <div class="empty-icon">♡</div>
+                    <p>No favorites yet.</p>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <div th:replace="~{fragments/footer :: footerBase}"></div>
+    <div th:replace="~{fragments/player :: playerBar}"></div>
+    <div th:replace="~{fragments/modals :: modals}"></div>
+
+    <script th:src="@{/js/app.js}"></script>
+    <script>
+        function initPage() {
+            const user = getUser();
+            if (!user) return window.location.replace('/login');
+            loadFavorites();
+        }
+
+        initPage();
+
+        async function loadFavorites() {
+            const user = getUser();
+            const list = document.getElementById('favoritesList');
+            try {
+                const data = await api(`/api/favorites/user/${user.userId}`);
+                list.innerHTML = data && data.length
+                    ? data.map((fav, i) => {
+                        const s = { id: fav.songId, title: fav.songTitle, artistName: fav.artistName, coverImage: fav.coverImage };
+                        let row = ui.songRow(s, i);
+                        // Add specific favorites heart icon
+                        return row.replace('<div class="song-actions">',
+                            `<div class="song-actions" style="opacity:1;">
+                                <button class="btn btn-ghost btn-icon active" onclick="event.stopPropagation();unfavSong(${s.id},this)" title="Remove">♥</button>`);
+                    }).join('')
+                    : ui.empty('♡', 'No favorites yet.');
+            } catch (err) { list.innerHTML = ui.empty('⚠️', 'Error loading favorites.'); }
+        }
+
+        async function unfavSong(songId, btn) {
+            const user = getUser();
+            try {
+                if (btn) btn.closest('.song-row').style.opacity = '0.4';
+                await api(`/api/favorites/user/${user.userId}/song/${songId}`, 'DELETE');
+                showToast('Removed');
+                loadFavorites();
+            } catch (e) {
+                showToast('Failed to remove', 'error');
+                if (btn) btn.closest('.song-row').style.opacity = '1';
+            }
+        }
+    </script>
+</body>
+
+</html>

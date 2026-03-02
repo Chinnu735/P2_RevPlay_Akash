@@ -10,94 +10,45 @@
 
 <body>
 
-    <!-- ── Navbar ──────────────────────────────────────────────────── -->
+    <!-- Navbar -->
     <nav class="navbar" id="navbar">
-        <a href="/" class="logo"><span class="logo-mark"><span class="eq-bar"></span><span class="eq-bar"></span><span
-                    class="eq-bar"></span><span class="eq-bar"></span></span> RevPlay</a>
+        <a href="/" class="logo">
+            <img th:src="@{/images/logo.png}" alt="Logo"
+                style="width: 32px; height: 32px; border-radius: 4px; filter: invert(1);"> RevPlay
+        </a>
         <div class="nav-links" id="navLinks">
             <a href="/login" class="nav-auth-link">Login</a>
             <a href="/register" class="btn btn-primary btn-sm nav-auth-link">Get Started</a>
         </div>
+        <div class="nav-search">
+            <input type="text" placeholder="Search songs..."
+                onkeydown="if(event.key==='Enter') handleUniversalSearch(this.value)">
+        </div>
         <button class="menu-toggle" onclick="document.getElementById('navLinks').classList.toggle('open')">☰</button>
     </nav>
 
-    <!-- ── Hero ────────────────────────────────────────────────────── -->
-    <section class="hero page-content">
-        <h1 class="animate-slide">
-            Music that<br><span class="thin">moves with you</span>
+    <!-- Hero -->
+    <section class="hero page-content"
+        style="min-height: calc(100vh - 80px); display: flex; flex-direction: column; justify-content: center;">
+        <h1>
+            Music that<br><span>moves with you</span>
         </h1>
-        <p class="hero-tagline animate-slide animate-delay-1"
+        <p class="hero-tagline"
             style="font-size:0.9rem;letter-spacing:0.25em;text-transform:uppercase;color:var(--accent);margin-bottom:1.5rem;font-weight:600;">
             Music Heals</p>
-        <p class="animate-slide animate-delay-1">
+        <p>
             Stream millions of songs, discover new artists, and build your perfect soundtrack.
         </p>
-        <div class="hero-actions animate-slide animate-delay-2">
+        <div class="hero-actions">
             <a href="/register" class="btn btn-primary btn-lg">Start Free</a>
             <a href="/login" class="btn btn-secondary btn-lg">Explore</a>
         </div>
     </section>
 
-    <!-- ── Features ────────────────────────────────────────────────── -->
-    <section class="container" style="padding-bottom: 4rem;">
-        <div class="grid grid-3">
-            <div class="feature-card animate-fade animate-delay-1">
-                <div class="feature-icon">🎵</div>
-                <h3>Unlimited Streaming</h3>
-                <p>Access a world of music from artists around the globe. Listen anywhere, anytime.</p>
-            </div>
-            <div class="feature-card animate-fade animate-delay-2">
-                <div class="feature-icon">📋</div>
-                <h3>Smart Playlists</h3>
-                <p>Curate the perfect mixtape. Share with friends or discover what others are listening to.</p>
-            </div>
-            <div class="feature-card animate-fade animate-delay-3">
-                <div class="feature-icon">📊</div>
-                <h3>Artist Analytics</h3>
-                <p>Track your plays, understand your audience, and grow your presence as an artist.</p>
-            </div>
-        </div>
-    </section>
-
-    <!-- ── CTA ──────────────────────────────────────────────────────── -->
-    <section class="container" style="padding: 5rem 1.75rem; text-align: center;">
-        <h2 style="margin-bottom:0.75rem;">Ready to listen?</h2>
-        <p class="text-muted" style="max-width:380px;margin:0 auto 2rem;font-size:0.9rem;">
-            Join as a listener or sign up as an artist to share your work with the world.
-        </p>
-        <div style="display:flex;gap:0.75rem;justify-content:center;flex-wrap:wrap;">
-            <a href="/register" class="btn btn-primary btn-lg">Join as Listener</a>
-            <a href="/register?type=artist" class="btn btn-secondary btn-lg">Join as Artist</a>
-        </div>
-    </section>
-
-    <!-- ── Footer ──────────────────────────────────────────────────── -->
-    <footer class="footer">
-        <div class="container">
-            <div class="footer-content">
-                <div class="footer-section">
-                    <h4>RevPlay</h4>
-                    <p class="text-muted" style="font-size:0.8rem;max-width:280px;line-height:1.6;">
-                        A minimalist music streaming platform uniting listeners and creators worldwide.
-                    </p>
-                </div>
-                <div class="footer-section">
-                    <h4>Platform</h4>
-                    <a href="/login">Login</a>
-                    <a href="/register">Join as Listener</a>
-                    <a href="/register?type=artist">Join as Artist</a>
-                </div>
-                <div class="footer-section">
-                    <h4>Features</h4>
-                    <a href="#">Listener Experience</a>
-                    <a href="#">Artist Analytics</a>
-                    <a href="#">Seamless Playlists</a>
-                </div>
-            </div>
-            <div class="footer-bottom">© 2026 RevPlay. All rights reserved.</div>
-        </div>
+    <footer
+        style="text-align:center;padding:2rem 1rem;color:var(--text-3);font-size:0.85rem;border-top:1px solid var(--border-1);">
+        RevPlay &copy; 2026. All rights reserved.
     </footer>
-
 </body>
 
 </html>

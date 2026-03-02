@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard — RevPlay</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+
+<body class="">
+
+    <nav class="navbar">
+        <a href="/home" class="logo">
+            <img th:src="@{/images/logo.png}" alt="Logo"
+                style="width: 32px; height: 32px; border-radius: 4px; filter: invert(1);"> RevPlay
+        </a>
+        <div class="nav-links" id="navLinks">
+            <a href="/home">Home</a>
+            <a href="/browse">Browse</a>
+            <a href="/playlists">Playlists</a>
+            <a href="/favorites">Favorites</a>
+            <a href="/browse" id="podcastsLink">Podcasts</a>
+            <a href="/artist-dashboard" id="dashboardLink" class="active">Dashboard</a>
+        </div>
+        <div class="nav-search">
+            <input type="text" placeholder="Search songs..."
+                onkeydown="if(event.key==='Enter') handleUniversalSearch(this.value)">
+        </div>
+        <div class="nav-actions"><a href="/profile" class="user-avatar" id="userAvatar">A</a></div>
+        <button class="menu-toggle" onclick="document.getElementById('navLinks').classList.toggle('open')">☰</button>
+    </nav>
+
+    <main class="page-content container">
+
+        <section class="section"
+            style="display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 1rem;">
+            <div>
+                <h1 style="font-size:2rem;">Dashboard</h1>
+                <p class="text-muted" style="font-size:0.85rem;">Manage your music and track performance</p>
+            </div>
+            <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                <button class="btn btn-primary btn-sm" onclick="showModal('addSongModal')">+ Upload Song</button>
+                <button class="btn btn-secondary btn-sm" onclick="showModal('addAlbumModal')">+ Create Album</button>
+                <button class="btn btn-secondary btn-sm" onclick="showModal('addPodcastModal')">+ Upload
+                    Podcast</button>
+            </div>
+        </section>
+
+        <section class="section">
+            <div class="dash-grid">
+                <div class="stat-card">
+                    <div class="stat-label">Songs</div>
+                    <div class="stat-value" id="statSongs">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Total Plays</div>
+                    <div class="stat-value" id="statPlays">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Favorites</div>
+                    <div class="stat-value" id="statFavs">0</div>
+                </div>
+            </div>
+        </section>
+
+        <div class="tabs">
+            <button class="tab active" onclick="showTab('songs', this)">My Songs</button>
+            <button class="tab" onclick="showTab('albums', this)">My Albums</button>
+            <button class="tab" onclick="showTab('podcasts', this)">Podcasts</button>
+            <button class="tab" onclick="showTab('popular', this)">Popular</button>
+            <button class="tab" onclick="showTab('listeners', this)">Listeners</button>
+        </div>
+
+        <div id="songsTab">
+            <div class="section-header mt-2">
+                <h3>Your Songs</h3>
+            </div>
+            <div id="mySongsList"></div>
+        </div>
+
+        <div id="albumsTab" class="hidden">
+            <div class="section-header mt-2">
+                <h3>Your Albums</h3>
+            </div>
+            <div class="grid grid-4" id="myAlbumsGrid"></div>
+        </div>
+
+        <div id="podcastsTab" class="hidden">
+            <div class="section-header mt-2">
+                <h3>Your Podcasts</h3>
+            </div>
+            <div class="grid grid-4" id="myPodcastsGrid"></div>
+        </div>
+
+        <div id="popularTab" class="hidden">
+            <div class="section-header mt-2">
+                <h3>Most Played</h3>
+            </div>
+            <div id="popularList"></div>
+        </div>
+
+        <div id="listenersTab" class="hidden">
+            <div class="section-header mt-2">
+                <h3>Top Listeners</h3>
+            </div>
+            <div id="listenersList"></div>
+        </div>
+
+    </main>
+
+    <!-- Upload Song Modal -->
+    <div class="modal-backdrop" id="addSongModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>Upload Song</h3><button class="modal-close" onclick="hideModal('addSongModal')">✕</button>
+            </div>
+            <form onsubmit="addSong(event)">
+                <div class="form-group"><label>Title</label><input type="text" id="songTitle" class="form-control"
+                        placeholder="Song title" required></div>
+                <div class="form-group"><label>Cover Image URL (optional)</label><input type="url" id="songCoverImage"
+                        class="form-control" placeholder="https://…jpg"></div>
+                <div class="form-group"><label>Release Date</label><input type="date" id="songReleaseDate"
+                        class="form-control"></div>
+                <div class="form-group">
+                    <label>Audio File</label>
+                    <div id="fileUploadMode">
+                        <input type="file" id="songFile" class="form-control" accept=".mp3,.wav,.ogg,.m4a,.aac"
+                            style="padding:0.5rem;">
+                        <p style="font-size:0.7rem;color:var(--text-3);margin-top:0.3rem;">MP3, WAV, OGG, M4A — Max
+                            100MB · <a href="#" onclick="toggleUploadMode(event)" style="color:var(--accent);">Or paste
+                                a URL instead</a></p>
+                    </div>
+                    <div id="urlUploadMode" class="hidden">
+                        <input type="url" id="songAudioUrl" class="form-control" placeholder="https://…mp3">
+                        <p style="font-size:0.7rem;color:var(--text-3);margin-top:0.3rem;"><a href="#"
+                                onclick="toggleUploadMode(event)" style="color:var(--accent);">← Upload a file
+                                instead</a></p>
+                    </div>
+                    <div id="uploadProgress" class="hidden" style="margin-top:0.5rem;">
+                        <div
+                            style="background:var(--bg-3);border-radius:var(--radius-full);height:6px;overflow:hidden;">
+                            <div id="uploadBar"
+                                style="height:100%;background:var(--accent);width:0%;transition:width 0.3s;"></div>
+                        </div>
+                        <p style="font-size:0.7rem;color:var(--text-3);margin-top:0.2rem;" id="uploadStatus">Uploading…
+                        </p>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Release Type</label>
+                    <select id="songAlbumId" class="form-control">
+                        <option value="">Single (no album)</option>
+                    </select>
+                    <div style="margin-top:0.4rem;display:flex;align-items:center;gap:0.5rem;">
+                        <span style="font-size:0.75rem;color:var(--text-3);" id="albumHint">Want to add to an album?
+                            Create one first →</span>
+                        <button type="button" class="btn btn-ghost btn-sm"
+                            style="font-size:0.72rem;padding:0.25rem 0.6rem;"
+                            onclick="hideModal('addSongModal');showModal('addAlbumModal')">+ Create Album</button>
+                    </div>
+                </div>
+                <div class="form-group"><label>Genre</label><select id="songGenreId" class="form-control">
+                        <option value="">Select</option>
+                    </select></div>
+                <div class="form-group"><label>Visibility</label><select id="songVisibility" class="form-control">
+                        <option value="public">Public</option>
+                        <option value="unlisted">Unlisted</option>
+                    </select></div>
+                <button type="submit" class="btn btn-primary w-full">Upload</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Create Album Modal -->
+    <div class="modal-backdrop" id="addAlbumModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>Create Album</h3><button class="modal-close" onclick="hideModal('addAlbumModal')">✕</button>
+            </div>
+            <form onsubmit="addAlbum(event)">
+                <div class="form-group"><label>Name</label><input type="text" id="albumName" class="form-control"
+                        placeholder="Album name" required></div>
+                <div class="form-group"><label>Description</label><textarea id="albumDesc" class="form-control" rows="3"
+                        placeholder="About this album"></textarea></div>
+                <div class="form-group"><label>Cover Image URL (optional)</label><input type="url" id="albumCoverImage"
+                        class="form-control" placeholder="https://…jpg"></div>
+                <div class="form-group"><label>Release Date</label><input type="date" id="albumDate"
+                        class="form-control"></div>
+                <button type="submit" class="btn btn-primary w-full">Create</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Upload Podcast Modal -->
+    <div class="modal-backdrop" id="addPodcastModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>Upload Podcast</h3><button class="modal-close" onclick="hideModal('addPodcastModal')">✕</button>
+            </div>
+            <form onsubmit="addPodcast(event)">
+                <div class="form-group"><label>Title</label><input type="text" id="podcastTitle" class="form-control"
+                        placeholder="Podcast Title" required></div>
+                <div class="form-group"><label>Description</label><textarea id="podcastDesc" class="form-control"
+                        rows="3" placeholder="What is this about?"></textarea></div>
+                <div class="form-group"><label>Cover Image URL</label><input type="url" id="podcastCover"
+                        class="form-control" placeholder="https://…jpg"></div>
+                <button type="submit" class="btn btn-primary w-full">Create Podcast</button>
+            </form>
+        </div>
+    </div>
+
+    <div th:replace="~{fragments/footer :: footerBase}"></div>
+    <div th:replace="~{fragments/player :: playerBar}"></div>
+    <div th:replace="~{fragments/modals :: modals}"></div>
+
+    <script th:src="@{/js/app.js}"></script>
+    <script>
+        let pendingAlbumSelectionId = null;
+
+        function initPage() {
+            const user = getUser();
+            if (!user || user.role !== 'artist') return window.location.replace('/home');
+
+            document.getElementById('userAvatar').textContent = (user.username || 'A').charAt(0).toUpperCase();
+            const artistId = user.artistProfileId;
+
+            if (artistId) {
+                loadAllData(artistId);
+                loadGenreOptions();
+            }
+
+            const urlParams = new URLSearchParams(window.location.search);
+            pendingAlbumSelectionId = urlParams.get('albumId');
+            if (urlParams.get('action') === 'upload_song') {
+                setTimeout(() => showModal('addSongModal'), 500);
+            }
+        }
+
+        initPage();
+
+        async function loadAllData(artistId) {
+            try {
+                // Single consolidated request for instant updates
+                const d = await api(`/api/analytics/artist/${artistId}/dashboard`);
+
+                // 1. Stats
+                document.getElementById('statSongs').textContent = d.totalSongs;
+                document.getElementById('statPlays').textContent = d.totalPlays;
+                document.getElementById('statFavs').textContent = d.totalFavorites;
+
+                // 2. Songs
+                const songsList = document.getElementById('mySongsList');
+                if (d.mySongs && d.mySongs.length) {
+                    songsList.innerHTML = d.mySongs.map((s, i) => {
+                        const row = ui.songRow(s, i);
+                        return row.replace('<div class="song-actions">',
+                            `<div class="song-actions" style="opacity:1;"><button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();deleteSong(${s.id}, this)">✕</button>`);
+                    }).join('');
+                } else {
+                    songsList.innerHTML = ui.empty('🎵', 'No songs yet.');
+                }
+
+                // 3. Albums
+                const albumGrid = document.getElementById('myAlbumsGrid');
+                if (d.myAlbums && d.myAlbums.length) {
+                    albumGrid.innerHTML = d.myAlbums.map(a => {
+                        const card = ui.card(a, 'album');
+                        return card.replace('class="card">', 'class="card" style="position:relative;">')
+                            .replace('</a>', `</a><button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();deleteAlbum(${a.id}, this)" style="position:absolute;top:8px;right:8px;background:rgba(0,0,0,0.5);color:white;border-radius:50%;width:32px;height:32px;padding:0;display:flex;align-items:center;justify-content:center;z-index:1;">✕</button>`);
+                    }).join('');
+                    populateAlbumDropdown(d.myAlbums);
+                } else {
+                    albumGrid.innerHTML = ui.empty('◉', 'No albums.');
+                }
+
+                // 4. Podcasts
+                const podcastGrid = document.getElementById('myPodcastsGrid');
+                if (d.myPodcasts && d.myPodcasts.length) {
+                    podcastGrid.innerHTML = d.myPodcasts.map(p => {
+                        const card = ui.card(p, 'podcast');
+                        return card.replace('class="card">', 'class="card" style="position:relative;">')
+                            .replace('</a>', `</a><button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();deletePodcast(${p.id}, this)" style="position:absolute;top:8px;right:8px;background:rgba(0,0,0,0.5);color:white;border-radius:50%;width:32px;height:32px;padding:0;display:flex;align-items:center;justify-content:center;z-index:1;">✕</button>`);
+                    }).join('');
+                } else {
+                    podcastGrid.innerHTML = ui.empty('🎙️', 'No podcasts.');
+                }
+
+                // 5. Popular Songs
+                if (d.topSongs && d.topSongs.length) {
+                    document.getElementById('popularList').innerHTML = d.topSongs.map((s, i) => ui.songRow({
+                        id: s.songId,
+                        title: s.songTitle,
+                        artistName: `${s.playCount || 0} plays`
+                    }, i)).join('');
+                } else {
+                    document.getElementById('popularList').innerHTML = ui.empty('📈', 'No data yet.');
+                }
+
+                // 6. Top Listeners
+                if (d.topListeners && d.topListeners.length) {
+                    document.getElementById('listenersList').innerHTML = d.topListeners.map((l, i) => `
+                        <div class="song-row">
+                            <span class="song-number">${i + 1}</span>
+                            <div class="song-thumb" style="border-radius:50%;background:var(--text-0);color:var(--bg);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.75rem;">${(l.username || '?').charAt(0).toUpperCase()}</div>
+                            <div class="song-info"><div class="song-title">${l.username || ''}</div><div class="song-artist">${l.playCount || 0} plays</div></div>
+                        </div>`).join('');
+                } else {
+                    document.getElementById('listenersList').innerHTML = ui.empty('👤', 'No data yet.');
+                }
+
+            } catch (e) {
+                console.error("Dashboard error", e);
+            }
+        }
+
+        async function deleteAlbum(id, el) {
+            if (!confirm('Delete this album completely?')) return;
+            try {
+                await api(`/api/albums/${id}`, 'DELETE');
+                showToast('Album deleted');
+                if (el) el.closest('.card').remove();
+            } catch (err) { showToast('Failed to delete', 'error'); }
+        }
+
+        async function loadGenreOptions() {
+            try {
+                const data = await api('/api/genres');
+                const sel = document.getElementById('songGenreId');
+                if (!sel) return;
+                sel.innerHTML = '<option value="">Select</option>';
+                data.forEach(g => {
+                    const o = document.createElement('option');
+                    o.value = g.id; o.textContent = g.name;
+                    sel.appendChild(o);
+                });
+            } catch (e) { }
+        }
+
+        function toggleUploadMode(e) {
+            e.preventDefault();
+            document.getElementById('fileUploadMode').classList.toggle('hidden');
+            document.getElementById('urlUploadMode').classList.toggle('hidden');
+        }
+
+        async function addSong(e) {
+            e.preventDefault();
+            const user = getUser();
+            const artistId = user.artistProfileId;
+            const btn = e.target.querySelector('button[type=submit]');
+            btn.disabled = true; btn.textContent = 'Uploading…';
+
+            try {
+                let audioUrl = '';
+                const fileInput = document.getElementById('songFile');
+                const urlInput = document.getElementById('songAudioUrl');
+                const isFileMode = !document.getElementById('fileUploadMode').classList.contains('hidden');
+
+                if (isFileMode && fileInput.files.length > 0) {
+                    const formData = new FormData();
+                    formData.append('file', fileInput.files[0]);
+                    document.getElementById('uploadProgress').classList.remove('hidden');
+
+                    const response = await fetch('/api/upload/song', {
+                        method: 'POST',
+                        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+                        body: formData
+                    });
+
+                    const result = await response.json();
+                    if (!response.ok) throw new Error(result.error || 'Upload failed');
+                    audioUrl = result.url;
+                    document.getElementById('uploadBar').style.width = '100%';
+                    document.getElementById('uploadStatus').textContent = 'Uploaded!';
+                } else {
+                    audioUrl = urlInput.value.trim();
+                }
+
+                if (!audioUrl) throw new Error('No audio source provided');
+
+                await api('/api/songs', 'POST', {
+                    artistId: artistId,
+                    title: document.getElementById('songTitle').value.trim(),
+                    audioUrl: audioUrl,
+                    coverImage: document.getElementById('songCoverImage').value.trim() || null,
+                    releaseDate: document.getElementById('songReleaseDate').value || null,
+                    albumId: document.getElementById('songAlbumId').value || null,
+                    genreId: document.getElementById('songGenreId').value || null,
+                    visibility: document.getElementById('songVisibility').value
+                });
+
+                hideModal('addSongModal');
+                loadMySongs(artistId);
+                showToast('Song uploaded!');
+                e.target.reset();
+                document.getElementById('uploadProgress').classList.add('hidden');
+                document.getElementById('uploadBar').style.width = '0%';
+            } catch (err) { showToast(err.message, 'error'); }
+            btn.disabled = false; btn.textContent = 'Upload';
+        }
+
+        function populateAlbumDropdown(albums) {
+            const sel = document.getElementById('songAlbumId');
+            if (!sel) return;
+            sel.innerHTML = '<option value="">Single (no album)</option>';
+            albums.forEach(a => {
+                const o = document.createElement('option');
+                o.value = a.id; o.textContent = a.name;
+                sel.appendChild(o);
+            });
+            if (pendingAlbumSelectionId) {
+                sel.value = pendingAlbumSelectionId;
+                pendingAlbumSelectionId = null;
+            }
+        }
+
+        async function addAlbum(e) {
+            e.preventDefault();
+            const user = getUser();
+            const artistId = user.artistProfileId;
+            try {
+                const created = await api('/api/albums', 'POST', {
+                    artistId: artistId,
+                    name: document.getElementById('albumName').value.trim(),
+                    description: document.getElementById('albumDesc').value.trim(),
+                    coverImage: document.getElementById('albumCoverImage').value.trim() || null,
+                    releaseDate: document.getElementById('albumDate').value || null
+                });
+                hideModal('addAlbumModal');
+                loadMyAlbums(artistId);
+                if (confirm('Album created! Upload a song to it now?')) {
+                    showModal('addSongModal');
+                    pendingAlbumSelectionId = created.id;
+                }
+            } catch (e) { showToast('Failed to create album', 'error'); }
+        }
+
+        async function loadMyPodcasts(artistId) {
+            const grid = document.getElementById('myPodcastsGrid');
+            try {
+                const data = await api(`/api/podcasts/artist/${artistId}`);
+                grid.innerHTML = data && data.length ? data.map(p => {
+                    const card = ui.card(p, 'podcast');
+                    return card.replace('class="card">', 'class="card" style="position:relative;">')
+                        .replace('</a>', `</a><button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();deletePodcast(${p.id}, this)" style="position:absolute;top:8px;right:8px;background:rgba(0,0,0,0.5);color:white;border-radius:50%;width:32px;height:32px;padding:0;display:flex;align-items:center;justify-content:center;z-index:1;">✕</button>`);
+                }).join('') : ui.empty('🎙️', 'No podcasts.');
+            } catch (e) { grid.innerHTML = ui.empty('⚠️', 'Error loading podcasts.'); }
+        }
+
+        async function deleteSong(id, el) {
+            if (!confirm('Delete this song?')) return;
+            try {
+                await api(`/api/songs/${id}`, 'DELETE');
+                showToast('Deleted');
+                if (el) el.closest('.song-row').remove();
+            } catch (e) { showToast('Failed', 'error'); }
+        }
+
+        async function deletePodcast(id, el) {
+            if (!confirm('Delete Podcast?')) return;
+            try {
+                await api(`/api/podcasts/${id}`, 'DELETE');
+                showToast('Deleted');
+                if (el) el.closest('.card').remove();
+            } catch (e) { showToast('Failed', 'error'); }
+        }
+
+        function showTab(tab, el) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            el.classList.add('active');
+            ['songsTab', 'albumsTab', 'podcastsTab', 'popularTab', 'listenersTab'].forEach(id => {
+                const doc = document.getElementById(id);
+                if (doc) doc.classList.add('hidden');
+            });
+            const activeTab = document.getElementById(tab + 'Tab');
+            if (activeTab) activeTab.classList.remove('hidden');
+        }
+    </script>
+</body>
+
+</html>

@@ -8,259 +8,189 @@
     <link rel="stylesheet" th:href="@{/css/style.css}">
 </head>
 
-<body class="">
+<body>
 
-        <nav class="navbar">
-        <a href="/home" class="logo"><span class="logo-mark"><span class="eq-bar"></span><span class="eq-bar"></span><span class="eq-bar"></span><span class="eq-bar"></span></span> RevPlay</a>
+    <nav class="navbar">
+        <a href="/home" class="logo">
+            <img th:src="@{/images/logo.png}" alt="Logo"
+                style="width: 32px; height: 32px; border-radius: 4px; filter: invert(1);"> RevPlay
+        </a>
         <div class="nav-links" id="navLinks">
-            <a href="/home">Home</a>
+            <a href="/home" class="active">Home</a>
             <a href="/browse">Browse</a>
             <a href="/playlists">Playlists</a>
-            <a href="/podcasts">Podcasts</a>
-            <a href="/artists">Artists</a>
-            <a href="/favorites" id="navFavorites">Favorites</a>
-            <a href="/artist-dashboard" id="dashboardLink" style="display:none;">Dashboard</a>
+            <a href="/favorites">Favorites</a>
+            <a href="/browse" id="podcastsLink">Podcasts</a>
+            <a href="/artist-dashboard" id="dashboardLink">Dashboard</a>
+        </div>
+        <div class="nav-search">
+            <input type="text" placeholder="Search songs..."
+                onkeydown="if(event.key==='Enter') handleUniversalSearch(this.value)">
         </div>
         <div class="nav-actions"><a href="/profile" class="user-avatar" id="userAvatar">U</a></div>
-        <button class="menu-toggle" onclick="document.getElementById('navLinks').classList.toggle('open')">?</button>
+        <button class="menu-toggle" onclick="document.getElementById('navLinks').classList.toggle('open')">☰</button>
     </nav>
 
     <main class="page-content container">
 
-        <p
-            style="text-align:center;font-size:0.75rem;letter-spacing:0.3em;text-transform:uppercase;color:var(--accent);padding:1rem 0 0.5rem;font-weight:600;opacity:0.7;">
-            ♪ Music Heals ♪</p>
-
-        <section class="section animate-fade">
-            <h1 id="welcomeText" style="font-size:2rem;">Good evening</h1>
-            <p class="text-muted mt-1" style="font-size:0.85rem;" id="welcomeSub">Here's what's happening on RevPlay</p>
-        </section>
-
-        <section class="section animate-fade animate-delay-1">
-            <div class="section-header">
-                <h2>Your Playlists</h2>
-                <button class="btn btn-primary btn-sm" onclick="showModal('createPlaylistModal')">+ New</button>
+        <!-- SEARCH SECTION -->
+        <section class="section" style="padding-top: 1rem;">
+            <div style="max-width:460px; margin: 0 auto 2rem;">
+                <input type="text" id="searchInput" class="form-control" placeholder="Search songs…"
+                    oninput="debounceSearch()" style="font-size:0.9rem;padding:0.85rem 1rem;">
             </div>
-            <div class="grid grid-4" id="playlistsGrid">
-                <div class="empty-state" style="grid-column:1/-1;">
-                    <div class="empty-icon">📋</div>
-                    <p>No playlists yet. Create your first one!</p>
+
+            <div id="searchResults" class="hidden" style="margin-bottom: 2rem;">
+                <div class="section-header">
+                    <h2>Search Results</h2>
+                    <button class="btn btn-ghost btn-sm" onclick="clearSearch()">Clear</button>
                 </div>
+                <div id="searchList"></div>
             </div>
         </section>
 
-        <section class="section animate-fade animate-delay-2">
+        <!-- GENRES SECTION -->
+        <section class="section" style="padding-top: 0;">
             <div class="section-header">
-                <h2>Recently Played</h2>
-                <button class="btn btn-ghost btn-sm" onclick="clearHistory()">Clear</button>
+                <h2>Genres</h2>
             </div>
-            <div class="grid grid-5" id="historyList">
-                <div class="empty-state" style="grid-column:1/-1;">
-                    <div class="empty-icon">🎶</div>
-                    <p>No listening history yet.</p>
-                </div>
-            </div>
+            <div class="grid grid-4" id="genresGrid"></div>
         </section>
 
-        <section class="section animate-fade animate-delay-2" style="padding-top:0;">
-            <div class="section-header">
-                <h2>Recently Added</h2>
-            </div>
-            <div class="grid grid-5" id="recentlyAddedList">
-                <div class="empty-state" style="grid-column:1/-1;">
-                    <div class="empty-icon">🆕</div>
-                    <p>Loading newest songs...</p>
-                </div>
-            </div>
-        </section>
-
-        <section class="section animate-fade animate-delay-2" style="padding-top:0;">
-            <div class="section-header">
-                <h2>Top 10 Trending</h2>
-            </div>
-            <div class="grid grid-5" id="trendingList">
-                <div class="empty-state" style="grid-column:1/-1;">
-                    <div class="empty-icon">🔥</div>
-                    <p>Loading trending songs...</p>
-                </div>
-            </div>
-        </section>
-
-        <section class="section animate-fade animate-delay-3">
-            <div class="section-header">
-                <h2>Favorites</h2>
-            </div>
-            <div class="grid grid-5" id="favoritesGrid">
-                <div class="empty-state" style="grid-column:1/-1;">
-                    <div class="empty-icon">♡</div>
-                    <p>No favorites yet.</p>
-                </div>
-            </div>
-        </section>
-
-        <section class="section animate-fade animate-delay-4">
+        <!-- ALL SONGS SECTION -->
+        <section class="section">
             <div class="section-header">
                 <h2>All Songs</h2>
             </div>
-            <div id="allSongsList">
-                <div class="empty-state">
-                    <div class="empty-icon">🎵</div>
-                    <p>Loading songs…</p>
-                </div>
+            <div id="allSongsList"></div>
+        </section>
+
+        <!-- RECENTLY PLAYED SECTION -->
+        <section class="section">
+            <div class="section-header">
+                <h2>Recently Played</h2>
+                <button class="btn btn-ghost btn-sm" onclick="clearHistory()">Clear History</button>
             </div>
+            <div class="grid grid-5" id="historyList"></div>
         </section>
 
     </main>
 
+    <div th:replace="~{fragments/footer :: footerBase}"></div>
     <div th:replace="~{fragments/player :: playerBar}"></div>
-
-    <div class="modal-backdrop" id="createPlaylistModal">
-        <div class="modal">
-            <div class="modal-header">
-                <h3>Create Playlist</h3><button class="modal-close"
-                    onclick="hideModal('createPlaylistModal')">✕</button>
-            </div>
-            <form onsubmit="createPlaylist(event)">
-                <div class="form-group"><label>Name</label><input type="text" id="playlistName" class="form-control"
-                        placeholder="My Playlist" required></div>
-                <div class="form-group"><label>Description</label><textarea id="playlistDesc" class="form-control"
-                        rows="3" placeholder="Optional description"></textarea></div>
-                <div class="form-group"><label>Privacy</label><select id="playlistPrivacy" class="form-control">
-                        <option value="private">Private</option>
-                        <option value="public">Public</option>
-                    </select></div>
-                <button type="submit" class="btn btn-primary w-full">Create</button>
-            </form>
-        </div>
-    </div>
-
     <div th:replace="~{fragments/modals :: modals}"></div>
 
     <script th:src="@{/js/app.js}"></script>
     <script>
-        const user = getUser();
-        if (!user) window.location.href = '/login';
-        const hour = new Date().getHours();
-        document.getElementById('welcomeText').textContent = `${hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'}, ${user.username || 'there'}`;
-        document.getElementById('userAvatar').textContent = (user.username || 'U').charAt(0).toUpperCase();
+        // Use a function-based init to play nice with PJAX
+        function initPage() {
+            const user = getUser();
+            if (!user) return window.location.replace('/login');
 
-        loadPlaylists(); loadHistory(); loadFavorites(); loadTrending(); loadAllSongs();
+            loadGenres();
+            loadAllSongs();
+            loadHistory();
+
+            // Handle query param if coming from universal search
+            const q = new URLSearchParams(window.location.search).get('q');
+            if (q) {
+                const hs = document.getElementById('searchInput');
+                if (hs) {
+                    hs.value = q;
+                    searchSongs();
+                }
+            }
+        }
+
+        initPage();
+
+        var searchTimer;
+        function debounceSearch() {
+            clearTimeout(searchTimer);
+            searchTimer = setTimeout(searchSongs, 300);
+        }
+
+        async function searchSongs() {
+            const q = document.getElementById('searchInput').value.trim();
+            const section = document.getElementById('searchResults');
+            const list = document.getElementById('searchList');
+            if (!q) { section.classList.add('hidden'); return; }
+
+            try {
+                const data = await api('/api/songs/search?title=' + encodeURIComponent(q));
+                section.classList.remove('hidden');
+                list.innerHTML = data && data.length
+                    ? data.map((s, i) => ui.songRow(s, i)).join('')
+                    : ui.empty('🔍', 'No songs found.');
+            } catch (e) {
+                list.innerHTML = ui.empty('❌', 'Search failed.');
+            }
+        }
+
+        function clearSearch() {
+            document.getElementById('searchInput').value = '';
+            document.getElementById('searchResults').classList.add('hidden');
+        }
+
+        async function loadGenres() {
+            const grid = document.getElementById('genresGrid');
+            try {
+                const data = await api('/api/genres');
+                if (!data || !data.length) { grid.innerHTML = ui.empty('♫', 'No genres.'); return; }
+                const allowed = ["Rock", "Pop", "Jazz", "Love", "Classical", "Country"];
+                const filtered = data.filter(g => allowed.includes(g.name));
+                grid.innerHTML = filtered.map(g => `
+                    <div class="feature-card" style="cursor:pointer;padding:1.5rem;" onclick="filterByGenre(${g.id}, '${g.name} Songs')">
+                        <div class="feature-icon">♫</div><h3>${g.name}</h3>
+                    </div>`).join('');
+            } catch (e) { grid.innerHTML = ui.empty('⚠️', 'Error loading genres.'); }
+        }
+
+        async function filterByGenre(id, name) {
+            const section = document.getElementById('searchResults');
+            const list = document.getElementById('searchList');
+            try {
+                const data = await api('/api/songs/genre/' + id);
+                section.classList.remove('hidden');
+                document.querySelector('#searchResults .section-header h2').textContent = name;
+                list.innerHTML = data && data.length
+                    ? data.map((s, i) => ui.songRow(s, i)).join('')
+                    : ui.empty('🎵', 'No songs in this genre.');
+                section.scrollIntoView({ behavior: 'smooth' });
+            } catch (e) {
+                list.innerHTML = ui.empty('❌', 'Could not load genre.');
+            }
+        }
 
         async function loadAllSongs() {
+            const list = document.getElementById('allSongsList');
             try {
                 const data = await api('/api/songs');
-                if (data.length) document.getElementById('allSongsList').innerHTML = data.map((s, i) => songRow(s, i)).join('');
-                else document.getElementById('allSongsList').innerHTML = '<div class="empty-state"><p>No songs available.</p></div>';
-            } catch (e) { }
+                list.innerHTML = data && data.length ? data.map((s, i) => ui.songRow(s, i)).join('') : ui.empty('🎵', 'No songs available.');
+            } catch (e) { list.innerHTML = ui.empty('❌', 'Error loading songs.'); }
         }
 
-        function songRow(s, i) {
-            return `<div class="song-row" onclick="playSong(${s.id},'${(s.title || '').replace(/'/g, "\\'")}','${(s.artistName || '').replace(/'/g, "\\'")}')">
-        <span class="song-number">${i + 1}</span><span class="song-play-icon">▶</span>
-        <div class="song-thumb" style="overflow:hidden;">
-            ${s.coverImage ? `<img src="${s.coverImage}" style="width:100%;height:100%;object-fit:cover;">` : ''}
-        </div>
-        <div class="song-info"><div class="song-title">${s.title}</div><div class="song-artist">${s.artistName || 'Unknown'}</div></div>
-        <span class="song-duration">${s.releaseDate || ''}</span></div>`;
-        }
-
-        async function loadPlaylists() {
-            try {
-                const data = await api(`/api/playlists/user/${user.userId}`);
-                if (!data.length) return;
-                document.getElementById('playlistsGrid').innerHTML = data.map(p => `
-            <a href="/playlist/${p.id}" class="card">
-                <div class="card-img" style="background:var(--bg-3);display:flex;align-items:center;justify-content:center;font-size:2rem;color:var(--text-4);">♫</div>
-                <div class="card-body"><div class="card-title">${p.name}</div><div class="card-subtitle">${p.privacy || 'private'}</div></div>
-            </a>`).join('');
-            } catch (e) { }
-        }
         async function loadHistory() {
+            const user = getUser();
+            const grid = document.getElementById('historyList');
+            if (!user) return;
             try {
                 const data = await api(`/api/listening-history/user/${user.userId}/recent?limit=10`);
-                if (!data.length) return;
-                document.getElementById('historyList').innerHTML = data.map((h, i) => `
-            <div class="card" onclick="playSong(${h.songId}, '${(h.songTitle || '').replace(/'/g, "\\'")}','${(h.artistName || '').replace(/'/g, "\\'")}')" style="cursor:pointer;">
-                <div class="card-img" style="background:var(--bg-3);display:flex;align-items:center;justify-content:center;font-size:2rem;color:var(--text-4);">🎵</div>
-                <div class="card-body">
-                    <div class="card-title">${h.songTitle}</div>
-                    <div class="card-subtitle">${h.artistName} · ${new Date(h.playedAt).toLocaleDateString()}</div>
-                </div>
-            </div>`).join('');
-            } catch (e) { }
+                grid.innerHTML = data && data.length ? data.map(h => ui.card(h, 'song')).join('') : ui.empty('🎶', 'No history yet.');
+            } catch (e) { grid.innerHTML = ui.empty('⚠️', 'Error loading history.'); }
         }
-        async function loadTrending() {
-            try {
-                const data = await api('/api/songs/trending');
-                if (!data || !data.length) {
-                    document.getElementById('trendingList').innerHTML = '<div class="empty-state" style="grid-column:1/-1;"><div class="empty-icon">📈</div><p>Not enough data for trending.</p></div>';
-                    return;
-                }
-                document.getElementById('trendingList').innerHTML = data.map((song, i) => `
-            <div class="card" onclick="playSong(${song.id}, '${(song.title || '').replace(/'/g, "\\'")}','${(song.artistName || '').replace(/'/g, "\\'")}')" style="cursor:pointer;position:relative;">
-                <div style="position:absolute;top:-10px;left:-10px;background:var(--accent);color:var(--bg);width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:0.8rem;z-index:2;box-shadow:var(--shadow-sm);">${i + 1}</div>
-                <div class="card-img" style="background:var(--bg-3);display:flex;align-items:center;justify-content:center;font-size:2rem;color:var(--text-4);">
-                    ${song.coverImage ? `<img src="${song.coverImage}" onerror="this.style.display='none';this.parentElement.innerHTML='🎵'" style="width:100%;height:100%;object-fit:cover;">` : '🎵'}
-                </div>
-                <div class="card-body">
-                    <div class="card-title">${song.title}</div>
-                    <div class="card-subtitle">${song.artistName || 'Unknown'}</div>
-                </div>
-            </div>`).join('');
-            } catch (e) {
-                console.error("Failed to load trending", e);
-            }
-        }
-        async function loadRecentlyAdded() {
-            try {
-                const data = await api('/api/songs/recent');
-                if (!data || !data.length) {
-                    document.getElementById('recentlyAddedList').innerHTML = '<div class="empty-state" style="grid-column:1/-1;"><div class="empty-icon">🆕</div><p>No new songs.</p></div>';
-                    return;
-                }
-                document.getElementById('recentlyAddedList').innerHTML = data.map((song) => `
-            <div class="card" onclick="playSong(${song.id}, '${(song.title || '').replace(/'/g, "\\'")}','${(song.artistName || '').replace(/'/g, "\\'")}')" style="cursor:pointer;position:relative;">
-                <div class="card-img" style="background:var(--bg-3);display:flex;align-items:center;justify-content:center;font-size:2rem;color:var(--text-4);overflow:hidden;">
-                    ${song.coverImage ? `<img src="${song.coverImage}" onerror="this.style.display='none';this.parentElement.innerHTML='🎵'" style="width:100%;height:100%;object-fit:cover;">` : '🎵'}
-                </div>
-                <div class="card-body">
-                    <div class="card-title">${song.title}</div>
-                    <div class="card-subtitle">${song.artistName || 'Unknown'} · New</div>
-                </div>
-            </div>`).join('');
-            } catch (e) {
-                console.error("Failed to load recent", e);
-            }
-        }
-        loadRecentlyAdded();
-        async function loadFavorites() {
-            try {
-                const data = await api(`/api/favorites/user/${user.userId}`);
-                if (!data.length) return;
-                document.getElementById('favoritesGrid').innerHTML = data.map(f => `
-            <div class="card" onclick="playSong(${f.songId}, '${(f.songTitle || '').replace(/'/g, "\\'")}','${(f.artistName || '').replace(/'/g, "\\'")}')" style="cursor:pointer;">
-                <div class="card-img" style="background:var(--bg-3);display:flex;align-items:center;justify-content:center;font-size:1.5rem;color:var(--text-4);">♡</div>
-                <div class="card-body"><div class="card-title">${f.songTitle}</div><div class="card-subtitle">${f.artistName}</div></div>
-            </div>`).join('');
-            } catch (e) { }
-        }
-        async function createPlaylist(e) {
-            e.preventDefault();
-            try {
-                const newPlaylist = await api('/api/playlists', 'POST', { userId: user.userId, name: document.getElementById('playlistName').value.trim(), description: document.getElementById('playlistDesc').value.trim(), privacy: document.getElementById('playlistPrivacy').value });
-                hideModal('createPlaylistModal');
-                loadPlaylists();
 
-                if (confirm('Playlist created! Would you like to view it and add songs to it now?')) {
-                    window.location.href = `/playlist/${newPlaylist.id}`;
-                } else {
-                    showToast('Playlist created!', 'success');
-                }
-            } catch (e) { showToast('Failed', 'error'); }
-        }
         async function clearHistory() {
-            if (!confirm('Clear all history?')) return;
-            try { await fetch(`/api/listening-history/user/${user.userId}`, { method: 'DELETE' }); document.getElementById('historyList').innerHTML = '<div class="empty-state"><div class="empty-icon">🎶</div><p>History cleared.</p></div>'; showToast('Cleared', 'success'); } catch (e) { showToast('Failed', 'error'); }
+            const user = getUser();
+            if (!user || !confirm('Clear all listening history?')) return;
+            try {
+                await fetch(`/api/listening-history/user/${user.userId}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
+                });
+                loadHistory();
+                showToast('History cleared');
+            } catch (e) { showToast('Failed to clear history', 'error'); }
         }
     </script>
 </body>

@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Album — RevPlay</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+
+<body class="app-bg">
+
+    <nav class="navbar">
+        <a href="/home" class="logo">
+            <span class="logo-mark"><span class="eq-bar"></span><span class="eq-bar"></span><span
+                    class="eq-bar"></span><span class="eq-bar"></span></span> RevPlay
+        </a>
+        <div class="nav-links" id="navLinks">
+            <a href="/home">Home</a>
+            <a href="/browse">Browse</a>
+            <a href="/playlists">Playlists</a>
+            <a href="/favorites">Favorites</a>
+            <a href="/browse" id="podcastsLink">Podcasts</a>
+            <a href="/artist-dashboard" id="dashboardLink">Dashboard</a>
+        </div>
+        <div class="nav-search">
+            <input type="text" placeholder="Search songs..."
+                onkeydown="if(event.key==='Enter') handleUniversalSearch(this.value)">
+        </div>
+        <div class="nav-actions"><a href="/profile" class="user-avatar" id="userAvatar">U</a></div>
+        <button class="menu-toggle" onclick="document.getElementById('navLinks').classList.toggle('open')">☰</button>
+    </nav>
+
+    <main class="page-content container">
+        <section class="section">
+            <div class="profile-header" style="border-bottom:none;">
+                <div class="profile-avatar"
+                    style="border-radius:var(--radius);width:180px;height:180px;font-size:3.5rem;background:var(--bg-3);color:var(--text-3);">
+                    ◉</div>
+                <div class="profile-info">
+                    <span class="text-muted"
+                        style="font-size:0.7rem;text-transform:uppercase;letter-spacing:0.08em;font-weight:600;">Album</span>
+                    <h1 id="albumName" style="font-size:2.25rem;">&nbsp;</h1>
+                    <p class="text-muted" style="font-size:0.85rem;" id="albumDesc"></p>
+                    <div class="profile-meta">
+                        <a href="#" id="albumArtistLink" style="color:var(--text-1);font-weight:500;"></a>
+                        <span id="albumDate"></span><span id="albumTracks"></span>
+                    </div>
+                    <div class="mt-2"><button class="btn btn-primary" onclick="playAll()">▶ Play All</button></div>
+                </div>
+            </div>
+        </section>
+
+        <section class="section" id="albumAdder" style="display:none; padding-top: 0;">
+            <div
+                style="background:var(--bg-2); padding: 1.5rem; border-radius: var(--radius); border: 1px dashed var(--border-3); text-align: center;">
+                <p class="mb-1" style="color:var(--text-2); font-size:0.9rem;">You own this album. Want to add more
+                    tracks?</p>
+                <button class="btn btn-primary btn-sm" onclick="goToDashboardToAddSong()">+ Upload Song to
+                    Album</button>
+            </div>
+        </section>
+
+        <section class="section">
+            <div id="trackList"></div>
+        </section>
+    </main>
+
+    <div th:replace="~{fragments/footer :: footerBase}"></div>
+    <div th:replace="~{fragments/player :: playerBar}"></div>
+    <div th:replace="~{fragments/modals :: modals}"></div>
+
+    <script th:src="@{/js/app.js}"></script>
+    <script>
+        function initPage() {
+            const user = getUser();
+            loadAlbum();
+        }
+
+        initPage();
+
+        async function loadAlbum() {
+            const albumId = window.location.pathname.split('/').pop();
+            const user = getUser();
+            try {
+                const d = await api(`/api/analytics/album/${albumId}/detail`);
+                document.getElementById('albumName').textContent = d.albumName;
+                document.getElementById('albumDesc').textContent = d.description || '';
+                document.getElementById('albumArtistLink').textContent = d.artistName;
+                document.getElementById('albumArtistLink').href = `/artist/${d.artistId}`;
+                document.getElementById('albumDate').textContent = d.releaseDate || '';
+                const cnt = d.tracks ? d.tracks.length : 0;
+                document.getElementById('albumTracks').textContent = ` · ${cnt} track${cnt !== 1 ? 's' : ''}`;
+                document.title = `${d.albumName} — RevPlay`;
+
+                if (user && user.role === 'artist' && user.artistProfileId === d.artistId) {
+                    document.getElementById('albumAdder').style.display = 'block';
+                }
+
+                const list = document.getElementById('trackList');
+                list.innerHTML = d.tracks && d.tracks.length
+                    ? d.tracks.map((s, i) => ui.songRow(s, i)).join('')
+                    : ui.empty('🎶', 'No tracks in this album.');
+            } catch (e) { document.getElementById('trackList').innerHTML = ui.empty('❌', 'Could not load album.'); }
+        }
+
+        function playAll() { showToast('Playing album…'); }
+        function goToDashboardToAddSong() {
+            const albumId = window.location.pathname.split('/').pop();
+            window.location.href = `/artist-dashboard?action=upload_song&albumId=${albumId}`;
+        }
+    </script>
+</body>
+
+</html>
