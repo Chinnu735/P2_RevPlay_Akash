@@ -9,6 +9,32 @@ function getUser() {
     }
 }
 
+// Global Logout — clears session on server + client storage, then redirects to login
+async function logout() {
+    try {
+        await fetch('/logout', { method: 'POST', credentials: 'same-origin' });
+    } catch (e) { /* ignore network errors — still clear local data */ }
+    localStorage.removeItem('user');
+    localStorage.removeItem('token');
+    localStorage.removeItem('rp_playback');
+    window.location.replace('/');
+}
+
+// Injects Logout button into .nav-actions on every page (called from DOMContentLoaded)
+function initNavLogout() {
+    const navActions = document.querySelector('.nav-actions');
+    if (!navActions || document.getElementById('logoutBtn')) return;
+    const btn = document.createElement('button');
+    btn.id = 'logoutBtn';
+    btn.className = 'btn btn-ghost btn-sm';
+    btn.textContent = 'Logout';
+    btn.style.cssText = 'margin-left:0.5rem;font-size:0.8rem;padding:0.3rem 0.8rem;border:1px solid var(--border-2);border-radius:var(--radius-sm);cursor:pointer;color:var(--text-2);background:transparent;transition:all 0.2s;';
+    btn.onmouseenter = () => { btn.style.color = 'var(--danger,#ff4d4d)'; btn.style.borderColor = 'var(--danger,#ff4d4d)'; };
+    btn.onmouseleave = () => { btn.style.color = 'var(--text-2)'; btn.style.borderColor = 'var(--border-2)'; };
+    btn.onclick = logout;
+    navActions.appendChild(btn);
+}
+
 //Auto-init: Handle Navbar Links & Badges
 document.addEventListener('DOMContentLoaded', () => {
     const user = getUser();
@@ -33,7 +59,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const navAvatar = document.getElementById('userAvatar');
     if (navAvatar) {
         if (user.profilePicture) {
-            navAvatar.innerHTML = `<img src="${user.profilePicture}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
+            // If it doesn't start with / or http, assume it's a filename in /uploads/
+            let picUrl = user.profilePicture;
+            if (!picUrl.startsWith('/') && !picUrl.startsWith('http')) {
+                picUrl = '/uploads/' + picUrl;
+            }
+            // Add cache busting
+            const cacheBust = picUrl.includes('?') ? '&v=' : '?v=' + Date.now();
+            navAvatar.innerHTML = `<img src="${picUrl}${cacheBust}" data-retries="0" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" onerror="if(this.dataset.retries < 5){ this.dataset.retries++; setTimeout(()=>this.src='${picUrl}${cacheBust}', 500); } else { this.parentElement.textContent='${(user.displayName || user.username || 'U').charAt(0).toUpperCase()}'; }">`;
         } else {
             navAvatar.textContent = (user.displayName || user.username || 'U').charAt(0).toUpperCase();
         }
@@ -55,6 +88,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Restore music playback from previous page
     restorePlayback();
+
+    // Inject Logout button into navbar header
+    initNavLogout();
 });
 
 /* ── API Helper ───────────────────────────────────────────────── */
@@ -98,25 +134,39 @@ async function api(url, method = 'GET', body = null) {
 }
 
 /* ── Unified UI Components ─────────────────────────────────────── */
-const ui = {
+window.ui = {
+    formatDuration(seconds) {
+        if (!seconds) return '--:--';
+        const m = Math.floor(seconds / 60);
+        const s = Math.floor(seconds % 60);
+        return `${m}:${s.toString().padStart(2, '0')}`;
+    },
     songRow(s, i, showNumber = true) {
+        if (!s.duration) {
+            setTimeout(() => fixMissingDuration(s.id), 500);
+        }
         const safeTitle = (s.title || '').replace(/'/g, "\\'");
         const safeArtist = (s.artistName || '').replace(/'/g, "\\'");
         return `
             <div class="song-row" onclick="playSong(${s.id}, '${safeTitle}', '${safeArtist}')">
                 ${showNumber ? `<span class="song-number">${i + 1}</span>` : ''}
                 <span class="song-play-icon">▶</span>
-                <div class="song-thumb" style="overflow:hidden;">
-                    ${s.coverImage ? `<img src="${s.coverImage}" style="width:100%;height:100%;object-fit:cover;">` : '🎵'}
+                <div class="song-thumb" style="overflow:hidden;border-radius:4px;background:var(--bg-3);">
+                    ${(() => {
+                let ci = s.coverImage;
+                if (ci && !ci.startsWith('/') && !ci.startsWith('http')) ci = '/uploads/' + ci;
+                return ci ? `<img src="${ci}" style="width:100%;height:100%;object-fit:cover;" onerror="this.src='/images/default-song.png'">` : '🎵';
+            })()}
                 </div>
                 <div class="song-info">
-                    <div class="song-title">${s.title || 'Unknown'}</div>
-                    <div class="song-artist">${s.artistName || 'Unknown Artist'}</div>
-                </div>
-                <div class="song-actions">
-                    <button class="btn-add-playlist" onclick="event.stopPropagation();openAddToPlaylistModal(${s.id})" title="Add to Playlist">+</button>
-                </div>
-            </div>`;
+                <div class="song-title">${s.title || 'Unknown'}</div>
+                <div class="song-artist">${s.artistName || 'Unknown Artist'}</div>
+            </div>
+            <div class="song-actions" style="display:flex;align-items:center;gap:1rem;">
+                <span class="song-duration" id="dur-${s.id}" style="color:var(--text-3);font-size:0.85rem;font-variant-numeric:tabular-nums;">${ui.formatDuration(s.duration)}</span>
+                <button class="btn-add-playlist" onclick="event.stopPropagation();openAddToPlaylistModal(${s.id})" title="Add to Playlist">+</button>
+            </div>
+        </div>`;
     },
     card(item, type = 'song') {
         const safeTitle = (item.title || item.name || '').replace(/'/g, "\\'");
@@ -132,8 +182,12 @@ const ui = {
 
         return `
             <${type === 'song' ? 'div' : 'a'} ${onclick} class="card">
-                <div class="card-img" style="background:var(--bg-3);display:flex;align-items:center;justify-content:center;font-size:2rem;color:var(--text-4);">
-                    ${img}
+                <div class="card-img" style="background:var(--bg-1);display:flex;align-items:center;justify-content:center;font-size:2.25rem;color:var(--text-4);overflow:hidden;border-radius:var(--radius-sm);">
+                    ${(() => {
+                let ci = item.coverImage || item.profilePicture;
+                if (ci && !ci.startsWith('/') && !ci.startsWith('http')) ci = '/uploads/' + ci;
+                return ci ? `<img src="${ci}" style="width:100%;height:100%;object-fit:cover;" onerror="this.style.display='none';this.parentElement.innerHTML='${icon}'">` : icon;
+            })()}
                 </div>
                 <div class="card-body">
                     <div class="card-title">${item.title || item.name || ''}</div>
@@ -238,12 +292,7 @@ function restorePlayback() {
             playlistIndex = saved.playlistIndex || 0;
         }
 
-        // Restore audio
-        audio.src = saved.audioUrl;
-        audio.volume = saved.volume || 0.7;
-        audio.currentTime = saved.currentTime || 0;
-
-        // Show player bar
+        // Show player bar immediately
         playerBar.style.display = 'flex';
         document.getElementById('playerTitle').textContent = saved.title || 'Unknown';
         document.getElementById('playerArtist').textContent = saved.artistName || '';
@@ -256,21 +305,42 @@ function restorePlayback() {
         const volFill = document.querySelector('.volume-fill');
         if (volFill) volFill.style.width = ((saved.volume || 0.7) * 100) + '%';
 
-        // Auto-resume if was playing
-        if (saved.wasPlaying) {
-            audio.play().then(() => {
-                isPlaying = true;
-                updatePlayButton();
-            }).catch(() => {
-                // Autoplay blocked by browser — show paused state
+        // Set up audio — currentTime MUST be set after loadedmetadata
+        audio.preload = 'auto';
+        audio.volume = saved.volume || 0.7;
+        audio.src = saved.audioUrl;
+
+        const resumeTime = saved.currentTime || 0;
+        const shouldPlay = saved.wasPlaying;
+
+        // Wait for metadata to load before seeking and playing
+        const onMetaLoaded = () => {
+            audio.removeEventListener('loadedmetadata', onMetaLoaded);
+            if (resumeTime > 0 && resumeTime < audio.duration) {
+                audio.currentTime = resumeTime;
+            }
+            if (shouldPlay) {
+                audio.play().then(() => {
+                    isPlaying = true;
+                    updatePlayButton();
+                }).catch(() => {
+                    isPlaying = false;
+                    updatePlayButton();
+                });
+            } else {
                 isPlaying = false;
                 updatePlayButton();
-            });
-        } else {
-            isPlaying = false;
-            updatePlayButton();
+            }
+        };
+        audio.addEventListener('loadedmetadata', onMetaLoaded);
+
+        // Fallback: if metadata is already loaded (cached), fire immediately
+        if (audio.readyState >= 1) {
+            onMetaLoaded();
         }
 
+        isPlaying = false;
+        updatePlayButton();
         checkFavoriteStatus(saved.songId);
     } catch (e) {
         console.error('Failed to restore playback:', e);
@@ -331,29 +401,48 @@ function formatTime(sec) {
 }
 
 // Core play function — fetches song data from API, loads audio, plays
-async function playSong(songId, title, artistName, fromList = true) {
+async function playSong(songId, title, artistName, fromListOrAudioUrl = true, paramCoverImage = null) {
     const playerBar = document.getElementById('playerBar');
     if (!playerBar) return;
 
     try {
+        let fromList = true;
+        let directAudioUrl = null;
+        if (typeof fromListOrAudioUrl === 'string') {
+            fromList = false;
+            directAudioUrl = fromListOrAudioUrl.trim();
+        } else {
+            fromList = fromListOrAudioUrl;
+        }
+
         if (fromList) updatePlaylistFromDOM(songId);
 
         let song = playlist.find(s => s.id === songId);
 
         if (!song || !song.audioUrl) {
-            // Fetch from API to get audioUrl
-            const data = await api(`/api/songs/${songId}`);
-            if (!song) {
-                song = {
-                    id: data.id,
-                    title: data.title || title || 'Unknown',
-                    artistName: data.artistName || artistName || 'Unknown Artist'
-                };
-                playlist.push(song);
-                playlistIndex = playlist.length - 1;
+            if (directAudioUrl) {
+                if (!song) {
+                    song = { id: songId, title: title || 'Unknown', artistName: artistName || 'Unknown Artist' };
+                    playlist.push(song);
+                    playlistIndex = playlist.length - 1;
+                }
+                song.audioUrl = (directAudioUrl.startsWith('http') || directAudioUrl.startsWith('/')) ? directAudioUrl : '/uploads/' + directAudioUrl;
+                song.coverImage = paramCoverImage;
+            } else {
+                // Fetch from API to get audioUrl
+                const data = await api(`/api/songs/${songId}`);
+                if (!song) {
+                    song = {
+                        id: data.id,
+                        title: data.title || title || 'Unknown',
+                        artistName: data.artistName || artistName || 'Unknown Artist'
+                    };
+                    playlist.push(song);
+                    playlistIndex = playlist.length - 1;
+                }
+                song.audioUrl = (data.audioUrl.startsWith('http') || data.audioUrl.startsWith('/')) ? data.audioUrl : '/uploads/' + data.audioUrl;
+                song.coverImage = data.coverImage;
             }
-            song.audioUrl = data.audioUrl;
-            song.coverImage = data.coverImage;
         } else {
             playlistIndex = playlist.indexOf(song);
         }
@@ -789,6 +878,29 @@ document.addEventListener('keydown', (e) => {
         audio.currentTime = Math.min(audio.duration || 0, audio.currentTime + 5);
     }
 });
+
+/* ── Genre Filter — global so it works from onclick attrs after SPA nav ── */
+async function filterByGenre(id, name) {
+    // If we are on home page, filter inline; otherwise navigate to home with genre param
+    const searchResults = document.getElementById('searchResults');
+    const list = document.getElementById('searchList');
+    if (!searchResults || !list) {
+        spaNavigate('/home?genre=' + id);
+        return;
+    }
+    try {
+        const data = await api('/api/songs/genre/' + id);
+        searchResults.classList.remove('hidden');
+        const h2 = document.querySelector('#searchResults .section-header h2');
+        if (h2) h2.textContent = name || 'Genre Results';
+        list.innerHTML = data && data.length
+            ? data.map((s, i) => ui.songRow(s, i)).join('')
+            : ui.empty('🎵', 'No songs in this genre.');
+        searchResults.scrollIntoView({ behavior: 'smooth' });
+    } catch (e) {
+        list.innerHTML = ui.empty('❌', 'Could not load genre.');
+    }
+}
 
 /* ── Universal Search (no PJAX — normal navigation) ────────────── */
 function handleUniversalSearch(query) {

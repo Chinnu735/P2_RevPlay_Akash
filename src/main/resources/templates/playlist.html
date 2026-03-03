@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Playlist — RevPlay</title>
     <link rel="stylesheet" th:href="@{/css/style.css}">
+    <script>if (!localStorage.getItem('user')) window.location.replace('/login');</script>
 </head>
 
 <body class="app-bg">
@@ -151,30 +152,13 @@
                     const ss = { id: s.songId, title: s.songTitle, artistName: s.artistName, coverImage: s.coverImage };
                     let row = ui.songRow(ss, i);
                     if (isOwner) {
-                        const reorderBtns = `
-                            <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();moveSong(${i},-1)" title="Move up" style="padding:0.15rem 0.3rem;min-width:auto;${i === 0 ? 'opacity:0.3;pointer-events:none;' : ''}">▲</button>
-                            <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();moveSong(${i},1)" title="Move down" style="padding:0.15rem 0.3rem;min-width:auto;${i === playlistSongs.length - 1 ? 'opacity:0.3;pointer-events:none;' : ''}">▼</button>
-                            <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();removeSongFromPlaylist(${ss.id})" title="Remove">✕</button>`;
-                        row = row.replace('<div class="song-actions">',
-                            `<div class="song-actions" style="opacity:1;">${reorderBtns}`);
+                        row = row.replace('<button class="btn-add-playlist"',
+                            `<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();removeSongFromPlaylist(${ss.id})" title="Remove">✕</button>
+                                <button class="btn-add-playlist"`);
                     }
                     return row;
                 }).join('')
                 : ui.empty('🎶', 'No songs in this playlist.');
-        }
-
-        async function moveSong(currentIndex, direction) {
-            const newIndex = currentIndex + direction;
-            if (newIndex < 0 || newIndex >= playlistSongs.length) return;
-            const playlistId = window.location.pathname.split('/').pop();
-            const song = playlistSongs[currentIndex];
-            try {
-                await api(`/api/playlist-songs/playlist/${playlistId}/song/${song.songId}/reorder`, 'PUT', null);
-                // Swap locally for instant feedback
-                [playlistSongs[currentIndex], playlistSongs[newIndex]] = [playlistSongs[newIndex], playlistSongs[currentIndex]];
-                const user = getUser();
-                renderSongs(user && playlistData && playlistData.userId === user.userId);
-            } catch (e) { showToast('Failed to reorder', 'error'); }
         }
 
         async function removeSongFromPlaylist(songId) {

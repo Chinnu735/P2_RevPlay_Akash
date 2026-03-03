@@ -1,9 +1,11 @@
 package com.revplay.app.controller;
 
 import com.revplay.app.dto.*;
-import com.revplay.app.service.PlaylistSongService;
+import com.revplay.app.service.IPlaylistSongService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -14,8 +16,9 @@ import java.util.List;
 @RequestMapping("/api/playlist-songs")
 @RequiredArgsConstructor
 public class PlaylistSongController {
+    private static final Logger log = LoggerFactory.getLogger(PlaylistSongController.class);
 
-    private final PlaylistSongService playlistSongService;
+    private final IPlaylistSongService playlistSongService;
 
     @PostMapping
     public ResponseEntity<PlaylistSongResponse> addSong(@Valid @RequestBody PlaylistSongRequest request) {

@@ -4,12 +4,16 @@ import com.revplay.app.dto.*;
 import com.revplay.app.entity.*;
 import com.revplay.app.exception.ResourceNotFoundException;
 import com.revplay.app.mapper.AlbumMapper;
+import com.revplay.app.mapper.PodcastMapper;
 import com.revplay.app.mapper.SongMapper;
 import com.revplay.app.repository.*;
-import com.revplay.app.service.ArtistAnalyticsService;
+import com.revplay.app.service.IArtistAnalyticsService;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.*;
@@ -17,20 +21,25 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
-public class ArtistAnalyticsServiceImpl implements ArtistAnalyticsService {
+@Transactional(readOnly = true)
+public class ArtistAnalyticsServiceImpl implements IArtistAnalyticsService {
+        private static final Logger log = LoggerFactory.getLogger(ArtistAnalyticsServiceImpl.class);
 
-        private final ArtistProfileRepository artistProfileRepository;
-        private final SongRepository songRepository;
-        private final AlbumRepository albumRepository;
-        private final ListeningHistoryRepository listeningHistoryRepository;
-        private final FavoriteRepository favoriteRepository;
-        private final PlaylistRepository playlistRepository;
-        private final UserRepository userRepository;
+        private final IArtistProfileRepository artistProfileRepository;
+        private final ISongRepository songRepository;
+        private final IAlbumRepository albumRepository;
+        private final IListeningHistoryRepository listeningHistoryRepository;
+        private final IFavoriteRepository favoriteRepository;
+        private final IPlaylistRepository playlistRepository;
+        private final IPodcastRepository podcastRepository;
+        private final IUserRepository userRepository;
         private final SongMapper songMapper;
         private final AlbumMapper albumMapper;
+        private final PodcastMapper podcastMapper;
 
         @Override
         public ArtistDashboardResponse getDashboard(Long artistId) {
+                log.info("Fetching dashboard for artistId: {}", artistId);
                 ArtistProfile artist = artistProfileRepository.findById(artistId)
                                 .orElseThrow(() -> new ResourceNotFoundException("ArtistProfile", artistId));
 
@@ -41,6 +50,10 @@ public class ArtistAnalyticsServiceImpl implements ArtistAnalyticsService {
                 List<ArtistDashboardResponse.SongPlayCount> topSongs = getSongsByPopularity(artistId);
                 List<ArtistDashboardResponse.TopListener> topListeners = getTopListeners(artistId, 10);
 
+                List<Song> mySongs = songRepository.findByArtistIdAndIsDeletedNot(artistId, 1);
+                List<Album> myAlbums = albumRepository.findByArtistId(artistId);
+                List<Podcast> myPodcasts = podcastRepository.findByArtistId(artistId);
+
                 return ArtistDashboardResponse.builder()
                                 .artistProfileId(artistId)
                                 .artistName(artist.getArtistName())
@@ -49,6 +62,10 @@ public class ArtistAnalyticsServiceImpl implements ArtistAnalyticsService {
                                 .totalFavorites(totalFavorites)
                                 .topSongs(topSongs.size() > 10 ? topSongs.subList(0, 10) : topSongs)
                                 .topListeners(topListeners)
+                                .mySongs(mySongs.stream().map(songMapper::toResponse).collect(Collectors.toList()))
+                                .myAlbums(myAlbums.stream().map(albumMapper::toResponse).collect(Collectors.toList()))
+                                .myPodcasts(myPodcasts.stream().map(podcastMapper::toResponse)
+                                                .collect(Collectors.toList()))
                                 .build();
         }
 
@@ -59,15 +76,21 @@ public class ArtistAnalyticsServiceImpl implements ArtistAnalyticsService {
 
         @Override
         public List<ArtistDashboardResponse.SongPlayCount> getSongsByPopularity(Long artistId) {
+                log.debug("Fetching songs by popularity for artistId: {}", artistId);
                 List<Object[]> results = listeningHistoryRepository.countPlaysBySongForArtist(artistId);
+                if (results.isEmpty())
+                        return Collections.emptyList();
+
+                List<Long> songIds = results.stream().map(row -> (Long) row[0]).collect(Collectors.toList());
+                Map<Long, String> songTitles = songRepository.findAllById(songIds).stream()
+                                .collect(Collectors.toMap(Song::getId, Song::getTitle));
+
                 return results.stream().map(row -> {
                         Long songId = (Long) row[0];
                         Long playCount = (Long) row[1];
-                        String songTitle = songRepository.findById(songId)
-                                        .map(Song::getTitle).orElse("Unknown");
                         return ArtistDashboardResponse.SongPlayCount.builder()
                                         .songId(songId)
-                                        .songTitle(songTitle)
+                                        .songTitle(songTitles.getOrDefault(songId, "Unknown"))
                                         .playCount(playCount)
                                         .build();
                 }).collect(Collectors.toList());
@@ -103,16 +126,22 @@ public class ArtistAnalyticsServiceImpl implements ArtistAnalyticsService {
 
         @Override
         public List<ArtistDashboardResponse.TopListener> getTopListeners(Long artistId, int limit) {
+                log.debug("Fetching top {} listeners for artistId: {}", limit, artistId);
                 List<Object[]> results = listeningHistoryRepository
                                 .findTopListenersByArtistId(artistId, PageRequest.of(0, limit));
+                if (results.isEmpty())
+                        return Collections.emptyList();
+
+                List<Long> userIds = results.stream().map(row -> (Long) row[0]).collect(Collectors.toList());
+                Map<Long, String> usernames = userRepository.findAllById(userIds).stream()
+                                .collect(Collectors.toMap(User::getId, User::getUsername));
+
                 return results.stream().map(row -> {
                         Long userId = (Long) row[0];
                         Long playCount = (Long) row[1];
-                        String username = userRepository.findById(userId)
-                                        .map(User::getUsername).orElse("Unknown");
                         return ArtistDashboardResponse.TopListener.builder()
                                         .userId(userId)
-                                        .username(username)
+                                        .username(usernames.getOrDefault(userId, "Unknown"))
                                         .playCount(playCount)
                                         .build();
                 }).collect(Collectors.toList());
@@ -120,24 +149,26 @@ public class ArtistAnalyticsServiceImpl implements ArtistAnalyticsService {
 
         @Override
         public ArtistPageResponse getArtistPage(Long artistId) {
+                log.info("Fetching public page for artistId: {}", artistId);
                 ArtistProfile artist = artistProfileRepository.findById(artistId)
                                 .orElseThrow(() -> new ResourceNotFoundException("ArtistProfile", artistId));
 
                 List<Song> songs = songRepository.findByArtistIdAndIsDeletedNot(artistId, 1);
-                List<Album> albums = albumRepository.findByArtistId(artistId);
+                List<AlbumResponse> albumResponses = albumRepository.findByArtistId(artistId).stream()
+                                .map(albumMapper::toResponse)
+                                .collect(Collectors.toList());
 
                 return ArtistPageResponse.builder()
                                 .artistProfileId(artist.getId())
                                 .artistName(artist.getArtistName())
                                 .genreName(artist.getGenre() != null ? artist.getGenre().getName() : null)
                                 .bannerImage(artist.getBannerImage())
+                                .profileImage(artist.getUser() != null ? artist.getUser().getProfilePicture() : null)
+                                .bio(artist.getUser() != null ? artist.getUser().getBio() : null)
                                 .instagramLink(artist.getInstagramLink())
-                                .twitterLink(artist.getTwitterLink())
                                 .youtubeLink(artist.getYoutubeLink())
-                                .spotifyLink(artist.getSpotifyLink())
-                                .websiteLink(artist.getWebsiteLink())
                                 .songs(songs.stream().map(songMapper::toResponse).collect(Collectors.toList()))
-                                .albums(albums.stream().map(albumMapper::toResponse).collect(Collectors.toList()))
+                                .albums(albumResponses)
                                 .build();
         }
 
@@ -154,14 +185,15 @@ public class ArtistAnalyticsServiceImpl implements ArtistAnalyticsService {
                                 .description(album.getDescription())
                                 .coverImageUrl(album.getCoverImage())
                                 .releaseDate(album.getReleaseDate() != null ? album.getReleaseDate().toString() : null)
-                                .artistName(album.getArtist().getArtistName())
-                                .artistId(album.getArtist().getId())
+                                .artistName(album.getArtist() != null ? album.getArtist().getArtistName() : "Unknown")
+                                .artistId(album.getArtist() != null ? album.getArtist().getId() : null)
                                 .tracks(tracks.stream().map(songMapper::toResponse).collect(Collectors.toList()))
                                 .build();
         }
 
         @Override
         public UserStatsResponse getUserStats(Long userId) {
+                log.info("Fetching user stats for userId: {}", userId);
                 User user = userRepository.findById(userId)
                                 .orElseThrow(() -> new ResourceNotFoundException("User", userId));
 

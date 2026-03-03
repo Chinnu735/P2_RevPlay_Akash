@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Podcast — RevPlay</title>
     <link rel="stylesheet" th:href="@{/css/style.css}">
+    <script>if (!localStorage.getItem('user')) window.location.replace('/login');</script>
 </head>
 
 <body class="">
@@ -42,11 +43,15 @@
                 <h1 id="podcastTitle" style="font-size:3rem;margin:0 0 0.5rem;line-height:1.1;">&nbsp;</h1>
                 <p id="podcastArtist" style="font-size:1.1rem;color:var(--text-2);margin:0 0 1rem;"></p>
                 <div id="podcastDesc" class="text-muted" style="font-size:0.9rem;max-width:600px;"></div>
-                <div style="margin-top:1.5rem;display:flex;gap:1rem;align-items:center;">
+                <div style="margin-top:1.5rem;display:flex;gap:1rem;align-items:center;flex-wrap:wrap;">
                     <button class="btn btn-primary" style="border-radius:30px;padding:0.6rem 2rem;font-weight:600;"
                         onclick="playFirstEpisode()">Play First Episode</button>
-                    <button id="addEpisodeBtn" class="btn btn-secondary hidden" onclick="showModal('addEpisodeModal')">+
-                        Add Episode</button>
+                    <div id="ownerControls" style="display:none;gap:0.75rem;">
+                        <button class="btn btn-secondary" onclick="showModal('addEpisodeModal')">+ Add Episode</button>
+                        <button class="btn btn-secondary" onclick="editPodcast()">✏️ Edit Podcast</button>
+                        <button class="btn btn-secondary" onclick="deletePodcast()" style="color:var(--danger);">✕
+                            Delete Podcast</button>
+                    </div>
                 </div>
             </div>
         </section>
@@ -100,6 +105,46 @@
         </div>
     </div>
 
+    <!-- Edit Podcast Modal -->
+    <div class="modal-backdrop" id="editPodcastModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>Edit Podcast</h3><button class="modal-close" onclick="hideModal('editPodcastModal')">✕</button>
+            </div>
+            <form onsubmit="updatePodcast(event)">
+                <input type="hidden" id="editPodcastId">
+                <div class="form-group"><label>Title</label><input type="text" id="editPodcastTitleField"
+                        class="form-control" required></div>
+                <div class="form-group"><label>Description</label><textarea id="editPodcastDescField"
+                        class="form-control" rows="3"></textarea></div>
+                <div class="form-group"><label>Cover Image URL (optional)</label><input type="url" id="editPodcastCover"
+                        class="form-control"></div>
+                <button type="submit" class="btn btn-primary w-full">Save Changes</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Edit Episode Modal -->
+    <div class="modal-backdrop" id="editEpisodeModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>Edit Episode</h3><button class="modal-close" onclick="hideModal('editEpisodeModal')">✕</button>
+            </div>
+            <form onsubmit="updateEpisode(event)">
+                <input type="hidden" id="editEpisodeId">
+                <div class="form-group"><label>Title</label><input type="text" id="editEpTitle" class="form-control"
+                        required></div>
+                <div class="form-group"><label>Description</label><textarea id="editEpDesc" class="form-control"
+                        rows="3"></textarea></div>
+                <div class="form-group"><label>Release Date</label><input type="date" id="editEpDate"
+                        class="form-control" required></div>
+                <div class="form-group"><label>Audio URL</label><input type="url" id="editEpUrl" class="form-control"
+                        required></div>
+                <button type="submit" class="btn btn-primary w-full">Save Changes</button>
+            </form>
+        </div>
+    </div>
+
     <div th:replace="~{fragments/footer :: footerBase}"></div>
     <div th:replace="~{fragments/player :: playerBar}"></div>
     <div th:replace="~{fragments/modals :: modals}"></div>
@@ -134,7 +179,7 @@
                 }
 
                 if (user && user.role === 'artist' && user.artistProfileId == podcastData.artistId) {
-                    document.getElementById('addEpisodeBtn').classList.remove('hidden');
+                    document.getElementById('ownerControls').style.display = 'flex';
                 }
 
                 loadEpisodes();
@@ -156,12 +201,14 @@
                 }
                 const isOwner = user && user.role === 'artist' && user.artistProfileId == podcastData.artistId;
                 list.innerHTML = episodesData.map((ep, i) => {
-                    const s = { id: ep.id + 100000, title: ep.title, artistName: ep.releaseDate || 'Unknown Date', audioUrl: ep.audioUrl };
+                    const s = { id: ep.id + 100000, title: ep.title, artistName: ep.releaseDate || 'Unknown Date', audioUrl: ep.audioUrl, duration: ep.duration };
                     let row = ui.songRow(s, i);
-                    row = row.replace('onclick="playSong', 'onclick="playEpisode'); // Use custom play for episodes
+                    row = row.replace('onclick="playSong', 'onclick="playEpisode');
                     if (isOwner) {
-                        row = row.replace('<div class="song-actions">',
-                            `<div class="song-actions" style="opacity:1;"><button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();deleteEpisode(${ep.id})">✕</button>`);
+                        row = row.replace('<button class="btn-add-playlist"',
+                            `<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();editEpisode(${ep.id})" title="Edit">✏️</button>
+                                <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();deleteEpisode(${ep.id})" title="Delete">✕</button>
+                                <button class="btn-add-playlist"`);
                     }
                     return row;
                 }).join('');
@@ -192,6 +239,7 @@
             btn.disabled = true; btn.textContent = 'Uploading…';
             try {
                 let audioUrl = '';
+                let durationPayload = 0;
                 const fileInput = document.getElementById('epFile');
                 const urlInput = document.getElementById('epUrl');
                 const isFileMode = !document.getElementById('fileUploadMode').classList.contains('hidden');
@@ -200,13 +248,44 @@
                     const formData = new FormData();
                     formData.append('file', fileInput.files[0]);
                     document.getElementById('uploadProgress').classList.remove('hidden');
-                    const res = await fetch('/api/upload/song', {
-                        method: 'POST', body: formData,
-                        headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
+
+                    audioUrl = await new Promise((resolve, reject) => {
+                        const xhr = new XMLHttpRequest();
+                        xhr.open('POST', '/api/upload/podcast');
+                        xhr.setRequestHeader('Authorization', 'Bearer ' + localStorage.getItem('token'));
+
+                        xhr.upload.onprogress = (event) => {
+                            if (event.lengthComputable) {
+                                const percent = (event.loaded / event.total) * 100;
+                                document.getElementById('uploadBar').style.width = percent + '%';
+                                document.getElementById('uploadStatus').textContent = 'Uploading...';
+                            }
+                        };
+
+                        xhr.onload = () => {
+                            if (xhr.status >= 200 && xhr.status < 300) {
+                                const data = JSON.parse(xhr.responseText);
+                                document.getElementById('uploadBar').style.width = '100%';
+                                document.getElementById('uploadStatus').textContent = 'Finalizing...';
+                                resolve(data.url);
+                            } else {
+                                const err = JSON.parse(xhr.responseText || '{}');
+                                reject(new Error(err.error || 'Upload failed'));
+                            }
+                        };
+
+                        xhr.onerror = () => reject(new Error('Network error during upload'));
+                        xhr.send(formData);
                     });
-                    const data = await res.json();
-                    if (!res.ok) throw new Error(data.error || 'Upload failed');
-                    audioUrl = data.url;
+
+                    // Extract duration from the uploaded file's server URL
+                    durationPayload = await new Promise((resolve) => {
+                        const tempAudio = new Audio(audioUrl);
+                        tempAudio.addEventListener('loadedmetadata', () => {
+                            resolve(Math.round(tempAudio.duration));
+                        });
+                        tempAudio.addEventListener('error', () => resolve(0));
+                    });
                 } else { audioUrl = urlInput.value.trim(); }
 
                 if (!audioUrl) throw new Error('No audio URL');
@@ -216,6 +295,7 @@
                     title: document.getElementById('epTitle').value.trim(),
                     description: document.getElementById('epDesc').value.trim(),
                     audioUrl: audioUrl,
+                    duration: durationPayload,
                     releaseDate: document.getElementById('epDate').value
                 });
                 hideModal('addEpisodeModal');
@@ -233,6 +313,79 @@
                 showToast('Deleted');
                 loadEpisodes();
             } catch (err) { showToast('Failed', 'error'); }
+        }
+
+        async function editPodcast() {
+            try {
+                document.getElementById('editPodcastId').value = podcastData.id;
+                document.getElementById('editPodcastTitleField').value = podcastData.title || '';
+                document.getElementById('editPodcastDescField').value = podcastData.description || '';
+                document.getElementById('editPodcastCover').value = podcastData.coverImage || '';
+                showModal('editPodcastModal');
+            } catch (e) { }
+        }
+
+        async function updatePodcast(e) {
+            e.preventDefault();
+            const id = document.getElementById('editPodcastId').value;
+            const user = getUser();
+            const btn = e.target.querySelector('button[type=submit]');
+            btn.disabled = true; btn.textContent = 'Saving...';
+            try {
+                await api(`/api/podcasts/${id}`, 'PUT', {
+                    artistId: user.artistProfileId,
+                    title: document.getElementById('editPodcastTitleField').value.trim(),
+                    description: document.getElementById('editPodcastDescField').value.trim(),
+                    coverImage: document.getElementById('editPodcastCover').value.trim() || null
+                });
+                hideModal('editPodcastModal');
+                showToast('Podcast updated!');
+                loadPodcast();
+            } catch (err) { showToast('Update failed', 'error'); }
+            btn.disabled = false; btn.textContent = 'Save Changes';
+        }
+
+        async function deletePodcast() {
+            if (!confirm('Delete this podcast and all its episodes?')) return;
+            const id = window.location.pathname.split('/').pop();
+            try {
+                await api(`/api/podcasts/${id}`, 'DELETE');
+                showToast('Podcast deleted');
+                window.location.href = '/artist-dashboard';
+            } catch (err) { showToast('Failed to delete', 'error'); }
+        }
+
+        async function editEpisode(id) {
+            try {
+                const ep = episodesData.find(e => e.id === id);
+                document.getElementById('editEpisodeId').value = ep.id;
+                document.getElementById('editEpTitle').value = ep.title || '';
+                document.getElementById('editEpDesc').value = ep.description || '';
+                document.getElementById('editEpDate').value = ep.releaseDate || '';
+                document.getElementById('editEpUrl').value = ep.audioUrl || '';
+                showModal('editEpisodeModal');
+            } catch (e) { }
+        }
+
+        async function updateEpisode(e) {
+            e.preventDefault();
+            const id = document.getElementById('editEpisodeId').value;
+            const podcastId = window.location.pathname.split('/').pop();
+            const btn = e.target.querySelector('button[type=submit]');
+            btn.disabled = true; btn.textContent = 'Saving...';
+            try {
+                await api(`/api/podcast-episodes/${id}`, 'PUT', {
+                    podcastId: podcastId,
+                    title: document.getElementById('editEpTitle').value.trim(),
+                    description: document.getElementById('editEpDesc').value.trim(),
+                    audioUrl: document.getElementById('editEpUrl').value.trim(),
+                    releaseDate: document.getElementById('editEpDate').value
+                });
+                hideModal('editEpisodeModal');
+                showToast('Episode updated!');
+                loadEpisodes();
+            } catch (err) { showToast('Update failed', 'error'); }
+            btn.disabled = false; btn.textContent = 'Save Changes';
         }
     </script>
 </body>

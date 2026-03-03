@@ -5,8 +5,10 @@ import com.revplay.app.entity.*;
 import com.revplay.app.exception.*;
 import com.revplay.app.mapper.PlaylistFollowerMapper;
 import com.revplay.app.repository.*;
-import com.revplay.app.service.PlaylistFollowerService;
+import com.revplay.app.service.IPlaylistFollowerService;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -16,15 +18,19 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
-public class PlaylistFollowerServiceImpl implements PlaylistFollowerService {
+@Transactional(readOnly = true)
+public class PlaylistFollowerServiceImpl implements IPlaylistFollowerService {
+    private static final Logger log = LoggerFactory.getLogger(PlaylistFollowerServiceImpl.class);
 
-    private final PlaylistFollowerRepository followerRepository;
-    private final PlaylistRepository playlistRepository;
-    private final UserRepository userRepository;
+    private final IPlaylistFollowerRepository followerRepository;
+    private final IPlaylistRepository playlistRepository;
+    private final IUserRepository userRepository;
     private final PlaylistFollowerMapper mapper;
 
     @Override
+    @Transactional
     public PlaylistFollowerResponse followPlaylist(PlaylistFollowerRequest request) {
+        log.info("User {} is following playlist {}", request.getUserId(), request.getPlaylistId());
         if (followerRepository.existsByPlaylistIdAndUserId(request.getPlaylistId(), request.getUserId())) {
             throw new DuplicateResourceException("Already following this playlist");
         }
@@ -43,6 +49,7 @@ public class PlaylistFollowerServiceImpl implements PlaylistFollowerService {
     @Override
     @Transactional
     public void unfollowPlaylist(Long playlistId, Long userId) {
+        log.info("User {} unfollowed playlist {}", userId, playlistId);
         if (!followerRepository.existsByPlaylistIdAndUserId(playlistId, userId)) {
             throw new ResourceNotFoundException("Not following this playlist");
         }

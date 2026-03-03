@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Favorites — RevPlay</title>
     <link rel="stylesheet" th:href="@{/css/style.css}">
+    <script>if (!localStorage.getItem('user')) window.location.replace('/login');</script>
 </head>
 
 <body class="">
@@ -73,9 +74,9 @@
                         const s = { id: fav.songId, title: fav.songTitle, artistName: fav.artistName, coverImage: fav.coverImage };
                         let row = ui.songRow(s, i);
                         // Add specific favorites heart icon
-                        return row.replace('<div class="song-actions">',
-                            `<div class="song-actions" style="opacity:1;">
-                                <button class="btn btn-ghost btn-icon active" onclick="event.stopPropagation();unfavSong(${s.id},this)" title="Remove">♥</button>`);
+                        return row.replace('<button class="btn-add-playlist"',
+                            `<button class="btn btn-ghost btn-icon active" onclick="event.stopPropagation();unfavSong(${s.id},this)" title="Remove">♥</button>
+                                <button class="btn-add-playlist"`);
                     }).join('')
                     : ui.empty('♡', 'No favorites yet.');
             } catch (err) { list.innerHTML = ui.empty('⚠️', 'Error loading favorites.'); }

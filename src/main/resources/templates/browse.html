@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Browse — RevPlay</title>
     <link rel="stylesheet" th:href="@{/css/style.css}">
+    <script>if (!localStorage.getItem('user')) window.location.replace('/login');</script>
 </head>
 
 <body>
@@ -88,16 +89,21 @@
             try {
                 const data = await api('/api/artists');
                 grid.innerHTML = data && data.length
-                    ? data.map(a => `
+                    ? data.map(a => {
+                        let pic = a.profilePicture;
+                        if (pic && !pic.startsWith('/') && !pic.startsWith('http')) pic = '/uploads/' + pic;
+                        const v = pic ? (pic.includes('?') ? '&v=' : '?v=' + Date.now()) : '';
+                        return `
                         <a href="/artist/${a.id}" class="card" style="text-decoration:none;">
                             <div class="card-img" style="background:var(--bg-3);display:flex;align-items:center;justify-content:center;font-size:2rem;color:var(--text-4);">
-                                ${a.profilePicture ? `<img src="${a.profilePicture}" style="width:100%;height:100%;object-fit:cover;" onerror="this.style.display='none';this.parentElement.innerHTML='🎤'">` : '🎤'}
+                                ${pic ? `<img src="${pic}${v}" style="width:100%;height:100%;object-fit:cover;" onerror="this.style.display='none';this.parentElement.innerHTML='🎤'">` : '🎤'}
                             </div>
                             <div class="card-body">
                                 <div class="card-title">${a.stageName || a.artistName || ''}</div>
                                 <div class="card-subtitle">${a.genreName || 'Artist'}</div>
                             </div>
-                        </a>`).join('')
+                        </a>`;
+                    }).join('')
                     : ui.empty('🎤', 'No artists yet.');
             } catch (e) { grid.innerHTML = ui.empty('⚠️', 'Error loading artists.'); }
         }

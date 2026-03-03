@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Playlists — RevPlay</title>
     <link rel="stylesheet" th:href="@{/css/style.css}">
+    <script>if (!localStorage.getItem('user')) window.location.replace('/login');</script>
 </head>
 
 <body>
@@ -87,9 +88,22 @@
             try {
                 const data = await api(`/api/playlists/user/${user.userId}`);
                 grid.innerHTML = data && data.length
-                    ? data.map(p => ui.card({ ...p, title: p.name, artistName: p.privacy || 'private' }, 'album').replace('/album/', '/playlist/'))
+                    ? data.map(p => {
+                        let card = ui.card({ ...p, title: p.name, artistName: p.privacy || 'private' }, 'album').replace('/album/', '/playlist/');
+                        return card.replace('class="card">', 'class="card" style="position:relative;">')
+                            .replace('</a>', `</a><button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();deletePlaylistGrid(${p.id})" style="position:absolute;top:8px;right:8px;background:rgba(0,0,0,0.5);color:white;border-radius:50%;width:32px;height:32px;padding:0;display:flex;align-items:center;justify-content:center;z-index:1;" title="Delete">✕</button>`);
+                    }).join('')
                     : ui.empty('📋', 'No playlists yet. Create your first one!');
             } catch (e) { grid.innerHTML = ui.empty('❌', 'Error loading your playlists.'); }
+        }
+
+        async function deletePlaylistGrid(playlistId) {
+            if (!confirm('Delete this playlist?')) return;
+            try {
+                await api(`/api/playlists/${playlistId}`, 'DELETE');
+                showToast('Playlist deleted');
+                loadMyPlaylists(); // Dynamically reload
+            } catch (e) { showToast('Failed to delete', 'error'); }
         }
 
         async function loadPublicPlaylists() {
@@ -97,7 +111,7 @@
             try {
                 const data = await api('/api/playlists/public');
                 grid.innerHTML = data && data.length
-                    ? data.map(p => ui.card({ ...p, title: p.name, artistName: (p.username || 'User') + ' · ' + (p.privacy || 'public') }, 'album').replace('/album/', '/playlist/'))
+                    ? data.map(p => ui.card({ ...p, title: p.name, artistName: (p.username || 'User') + ' · ' + (p.privacy || 'public') }, 'album').replace('/album/', '/playlist/')).join('')
                     : ui.empty('📋', 'No public playlists found.');
             } catch (e) { grid.innerHTML = ui.empty('⚠️', 'Error loading public playlists.'); }
         }
@@ -111,10 +125,22 @@
                     ? data.map(p => {
                         const pid = p.playlistId || p.id;
                         const pname = p.playlistName || p.name || 'Playlist';
-                        return ui.card({ id: pid, title: pname, artistName: 'Followed' }, 'album').replace('/album/', '/playlist/');
-                    })
+                        let card = ui.card({ id: pid, title: pname, artistName: 'Followed' }, 'album').replace('/album/', '/playlist/');
+                        return card.replace('class="card">', 'class="card" style="position:relative;">')
+                            .replace('</a>', `</a><button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();unfollowPlaylistGrid(${pid})" style="position:absolute;top:8px;right:8px;background:rgba(0,0,0,0.5);color:white;border-radius:50%;width:32px;height:32px;padding:0;display:flex;align-items:center;justify-content:center;z-index:1;" title="Unfollow">✕</button>`);
+                    }).join('')
                     : ui.empty('★', 'You are not following any playlists.');
             } catch (e) { grid.innerHTML = ui.empty('⚠️', 'Error loading followed playlists.'); }
+        }
+
+        async function unfollowPlaylistGrid(playlistId) {
+            const user = getUser();
+            if (!confirm('Unfollow this playlist?')) return;
+            try {
+                await api(`/api/playlist-followers/playlist/${playlistId}/user/${user.userId}`, 'DELETE');
+                showToast('Unfollowed playlist');
+                loadFollowingPlaylists(); // Dynamically reload
+            } catch (e) { showToast('Failed to unfollow', 'error'); }
         }
     </script>
 </body>

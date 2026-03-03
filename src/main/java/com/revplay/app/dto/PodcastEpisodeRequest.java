@@ -22,6 +22,6 @@ public class PodcastEpisodeRequest {
     @Size(max = 500)
     private String audioUrl;
 
-    private Long duration;
+    private Integer duration;
     private LocalDate releaseDate;
 }

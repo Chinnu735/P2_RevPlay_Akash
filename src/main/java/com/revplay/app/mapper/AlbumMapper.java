@@ -9,8 +9,8 @@ public class AlbumMapper {
     public AlbumResponse toResponse(Album album) {
         return AlbumResponse.builder()
                 .id(album.getId())
-                .artistId(album.getArtist().getId())
-                .artistName(album.getArtist().getArtistName())
+                .artistId(album.getArtist() != null ? album.getArtist().getId() : null)
+                .artistName(album.getArtist() != null ? album.getArtist().getArtistName() : "Unknown")
                 .name(album.getName())
                 .description(album.getDescription())
                 .releaseDate(album.getReleaseDate())

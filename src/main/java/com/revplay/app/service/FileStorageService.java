@@ -21,7 +21,7 @@ public class FileStorageService {
     private static final Set<String> IMAGE_EXTENSIONS = Set.of(
             ".jpg", ".jpeg", ".png", ".gif", ".webp");
 
-    private static final long MAX_SIZE = 50 * 1024 * 1024; // 50MB
+    private static final long MAX_SIZE = 100 * 1024 * 1024; // 100MB
 
     private final Path uploadRoot;
 
@@ -60,22 +60,40 @@ public class FileStorageService {
             throw new IllegalArgumentException("Unsupported file type");
         }
 
-        // Ensure subDir exists
-        Path targetDir = this.uploadRoot.resolve(subDir);
-        Files.createDirectories(targetDir);
+        // Generate unique filename: UUID + "-" + originalName
+        // Sanitize originalName just in case
+        String sanitizedName = originalName != null ? originalName.replaceAll("[^a-zA-Z0-9._-]", "_") : "file";
+        String uniqueName = UUID.randomUUID().toString() + "-" + sanitizedName;
 
-        // Generate unique filename
-        String uniqueName = UUID.randomUUID().toString() + extension;
-        Path targetPath = targetDir.resolve(uniqueName);
+        Path targetPath;
+        if (isImage) {
+            // For images, store directly in uploadRoot as requested
+            targetPath = this.uploadRoot.resolve(uniqueName);
+        } else {
+            // For songs, keep subDir if provided, else root
+            Path targetDir = subDir != null ? this.uploadRoot.resolve(subDir) : this.uploadRoot;
+            Files.createDirectories(targetDir);
+            targetPath = targetDir.resolve(uniqueName);
+        }
 
         // Copy file
         Files.copy(file.getInputStream(), targetPath, StandardCopyOption.REPLACE_EXISTING);
 
-        // Return the URL path
-        return "/uploads/" + subDir + "/" + uniqueName;
+        // Return ONLY the filename (or relative path if in subDir)
+        if (isImage) {
+            return uniqueName;
+        } else {
+            return (subDir != null ? subDir + "/" : "") + uniqueName;
+        }
     }
 
     public String store(MultipartFile file) throws IOException {
-        return store(file, "songs");
+        String ext = "";
+        String on = file.getOriginalFilename();
+        if (on != null && on.contains(".")) {
+            ext = on.substring(on.lastIndexOf('.')).toLowerCase();
+        }
+        String subDir = SONG_EXTENSIONS.contains(ext) ? "songs" : null;
+        return store(file, subDir);
     }
 }

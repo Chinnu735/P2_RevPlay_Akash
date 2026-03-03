@@ -2,6 +2,8 @@ package com.revplay.app.config;
 
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -21,6 +23,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 @EnableWebSecurity
 @RequiredArgsConstructor
 public class SecurityConfig {
+    private static final Logger log = LoggerFactory.getLogger(SecurityConfig.class);
 
     private final JwtFilter jwtFilter;
     private final UserDetailsService userDetailsService;
@@ -30,17 +33,22 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
                 .csrf(AbstractHttpConfigurer::disable)
-                .cors(AbstractHttpConfigurer::disable) // CORS is cleanly disabled per latest request
+                .cors(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(auth -> auth
                         // Strictly protect state-changing API routes
                         .requestMatchers("/api/auth/**").permitAll()
-                        .requestMatchers("/api/health").permitAll()
                         .requestMatchers("/api/songs/recent", "/api/songs/trending", "/api/songs/genre/**").permitAll()
                         .requestMatchers("/api/genres", "/api/playlists/public").permitAll()
+                        .requestMatchers("/api/users/email/**", "/api/users/reset-password").permitAll()
                         // All other /api/ paths require authentication
                         .requestMatchers("/api/**").authenticated()
 
-                        // Allow uploads
+                        // Allow MVC templates, static files, uploads
+                        .requestMatchers("/", "/login", "/register", "/forgot-password", "/home", "/browse",
+                                "/favorites", "/playlists", "/playlist/**", "/album/**",
+                                "/artist-dashboard", "/profile", "/podcasts", "/podcast/**", "/artist/**")
+                        .permitAll()
+                        .requestMatchers("/css/**", "/js/**", "/images/**", "/fonts/**", "/favicon.ico").permitAll()
                         .requestMatchers("/uploads/**").permitAll()
 
                         .anyRequest().permitAll())

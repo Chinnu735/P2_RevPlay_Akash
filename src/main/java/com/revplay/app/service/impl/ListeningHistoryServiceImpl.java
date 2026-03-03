@@ -5,8 +5,10 @@ import com.revplay.app.entity.*;
 import com.revplay.app.exception.*;
 import com.revplay.app.mapper.ListeningHistoryMapper;
 import com.revplay.app.repository.*;
-import com.revplay.app.service.ListeningHistoryService;
+import com.revplay.app.service.IListeningHistoryService;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,15 +19,19 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
-public class ListeningHistoryServiceImpl implements ListeningHistoryService {
+@Transactional(readOnly = true)
+public class ListeningHistoryServiceImpl implements IListeningHistoryService {
+    private static final Logger log = LoggerFactory.getLogger(ListeningHistoryServiceImpl.class);
 
-    private final ListeningHistoryRepository historyRepository;
-    private final UserRepository userRepository;
-    private final SongRepository songRepository;
+    private final IListeningHistoryRepository historyRepository;
+    private final IUserRepository userRepository;
+    private final ISongRepository songRepository;
     private final ListeningHistoryMapper mapper;
 
     @Override
+    @Transactional
     public ListeningHistoryResponse recordPlay(ListeningHistoryRequest request) {
+        log.info("Recording play - userId: {}, songId: {}", request.getUserId(), request.getSongId());
         User user = userRepository.findById(request.getUserId())
                 .orElseThrow(() -> new ResourceNotFoundException("User", request.getUserId()));
         Song song = songRepository.findById(request.getSongId())
@@ -40,6 +46,7 @@ public class ListeningHistoryServiceImpl implements ListeningHistoryService {
 
     @Override
     public List<ListeningHistoryResponse> getHistoryByUserId(Long userId) {
+        log.debug("Fetching listening history for userId: {}", userId);
         return historyRepository.findByUserIdOrderByPlayedAtDesc(userId).stream()
                 .map(mapper::toResponse)
                 .collect(Collectors.toList());
@@ -47,6 +54,7 @@ public class ListeningHistoryServiceImpl implements ListeningHistoryService {
 
     @Override
     public List<ListeningHistoryResponse> getRecentHistory(Long userId, int limit) {
+        log.debug("Fetching recent {} history entries for userId: {}", limit, userId);
         return historyRepository.findAllByUserIdOrderByPlayedAtDesc(userId, PageRequest.of(0, limit))
                 .stream()
                 .map(mapper::toResponse)
@@ -56,6 +64,7 @@ public class ListeningHistoryServiceImpl implements ListeningHistoryService {
     @Override
     @Transactional
     public void clearHistory(Long userId) {
+        log.info("Clearing listening history for userId: {}", userId);
         userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User", userId));
         historyRepository.deleteByUserId(userId);

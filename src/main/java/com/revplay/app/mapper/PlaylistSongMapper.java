@@ -12,6 +12,7 @@ public class PlaylistSongMapper {
                 .songId(playlistSong.getSong().getId())
                 .songTitle(playlistSong.getSong().getTitle())
                 .artistName(playlistSong.getSong().getArtist().getArtistName())
+                .duration(playlistSong.getSong().getDuration())
                 .orderIndex(playlistSong.getOrderIndex())
                 .build();
     }

@@ -13,5 +13,6 @@ public class ListeningHistoryResponse {
     private Long songId;
     private String songTitle;
     private String artistName;
+    private String coverImage;
     private LocalDateTime playedAt;
 }

@@ -1,32 +1,35 @@
 package com.revplay.app.service.impl;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
 import com.revplay.app.dto.*;
 import com.revplay.app.entity.*;
 import com.revplay.app.exception.*;
 import com.revplay.app.mapper.ArtistProfileMapper;
 import com.revplay.app.repository.*;
-import com.revplay.app.service.ArtistProfileService;
+import com.revplay.app.service.IArtistProfileService;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
-public class ArtistProfileServiceImpl implements ArtistProfileService {
+@Transactional(readOnly = true)
+public class ArtistProfileServiceImpl implements IArtistProfileService {
+    private static final Logger log = LoggerFactory.getLogger(ArtistProfileServiceImpl.class);
 
-    private static final Logger logger = LogManager.getLogger(ArtistProfileServiceImpl.class);
-    private final ArtistProfileRepository artistProfileRepository;
-    private final UserRepository userRepository;
-    private final GenreRepository genreRepository;
+    private final IArtistProfileRepository artistProfileRepository;
+    private final IUserRepository userRepository;
+    private final IGenreRepository genreRepository;
     private final ArtistProfileMapper mapper;
 
     @Override
+    @Transactional
     public ArtistProfileResponse create(ArtistProfileRequest request) {
+        log.info("Creating artist profile for userId: {}", request.getUserId());
         if (artistProfileRepository.existsByUserId(request.getUserId())) {
             throw new DuplicateResourceException("Artist profile already exists for user: " + request.getUserId());
         }
@@ -43,6 +46,7 @@ public class ArtistProfileServiceImpl implements ArtistProfileService {
 
     @Override
     public ArtistProfileResponse getById(Long id) {
+        log.debug("Fetching artist profile by id: {}", id);
         ArtistProfile profile = artistProfileRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("ArtistProfile", id));
         return mapper.toResponse(profile);
@@ -50,6 +54,7 @@ public class ArtistProfileServiceImpl implements ArtistProfileService {
 
     @Override
     public ArtistProfileResponse getByUserId(Long userId) {
+        log.debug("Fetching artist profile by userId: {}", userId);
         ArtistProfile profile = artistProfileRepository.findByUserId(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("ArtistProfile not found for user: " + userId));
         return mapper.toResponse(profile);
@@ -57,6 +62,7 @@ public class ArtistProfileServiceImpl implements ArtistProfileService {
 
     @Override
     public List<ArtistProfileResponse> getAll() {
+        log.debug("Fetching all artist profiles");
         return artistProfileRepository.findAll().stream()
                 .map(mapper::toResponse)
                 .collect(Collectors.toList());
@@ -64,13 +70,16 @@ public class ArtistProfileServiceImpl implements ArtistProfileService {
 
     @Override
     public List<ArtistProfileResponse> getByGenreId(Long genreId) {
+        log.debug("Fetching artist profiles by genre: {}", genreId);
         return artistProfileRepository.findByGenreId(genreId).stream()
                 .map(mapper::toResponse)
                 .collect(Collectors.toList());
     }
 
     @Override
+    @Transactional
     public ArtistProfileResponse update(Long id, ArtistProfileRequest request) {
+        log.info("Updating artist profile id: {}", id);
         ArtistProfile profile = artistProfileRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("ArtistProfile", id));
         Genre genre = null;
@@ -83,11 +92,12 @@ public class ArtistProfileServiceImpl implements ArtistProfileService {
     }
 
     @Override
+    @Transactional
     public void delete(Long id) {
+        log.info("Deleting artist profile id: {}", id);
         if (!artistProfileRepository.existsById(id)) {
             throw new ResourceNotFoundException("ArtistProfile", id);
         }
-        logger.info("Deleting ArtistProfile with id: {}", id);
         artistProfileRepository.deleteById(id);
     }
 }

@@ -14,10 +14,7 @@ public class ArtistRegisterRequest {
     private Long genreId;
     private String bannerImage;
     private String instagramLink;
-    private String twitterLink;
     private String youtubeLink;
-    private String spotifyLink;
-    private String websiteLink;
     private String securityQuestion;
     private String securityAnswer;
 }

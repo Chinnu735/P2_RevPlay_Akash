@@ -1,8 +1,10 @@
 package com.revplay.app.controller;
 
 import com.revplay.app.dto.*;
-import com.revplay.app.service.ArtistAnalyticsService;
+import com.revplay.app.service.IArtistAnalyticsService;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -14,12 +16,14 @@ import java.util.Map;
 @RequestMapping("/api/analytics")
 @RequiredArgsConstructor
 public class ArtistAnalyticsController {
+    private static final Logger log = LoggerFactory.getLogger(ArtistAnalyticsController.class);
 
-    private final ArtistAnalyticsService analyticsService;
+    private final IArtistAnalyticsService analyticsService;
 
     // ── ARTIST DASHBOARD ─────────────────────────────────────────────────
     @GetMapping("/artist/{artistId}/dashboard")
     public ResponseEntity<ArtistDashboardResponse> getDashboard(@PathVariable Long artistId) {
+        log.info("GET /api/analytics/artist/{}/dashboard", artistId);
         return ResponseEntity.ok(analyticsService.getDashboard(artistId));
     }
 
@@ -34,6 +38,7 @@ public class ArtistAnalyticsController {
     @GetMapping("/artist/{artistId}/songs/popular")
     public ResponseEntity<List<ArtistDashboardResponse.SongPlayCount>> getPopularSongs(
             @PathVariable Long artistId) {
+        log.info("GET /api/analytics/artist/{}/songs/popular", artistId);
         return ResponseEntity.ok(analyticsService.getSongsByPopularity(artistId));
     }
 
@@ -60,6 +65,7 @@ public class ArtistAnalyticsController {
     public ResponseEntity<List<ArtistDashboardResponse.TopListener>> getTopListeners(
             @PathVariable Long artistId,
             @RequestParam(defaultValue = "10") int limit) {
+        log.info("GET /api/analytics/artist/{}/listeners/top?limit={}", artistId, limit);
         return ResponseEntity.ok(analyticsService.getTopListeners(artistId, limit));
     }
 

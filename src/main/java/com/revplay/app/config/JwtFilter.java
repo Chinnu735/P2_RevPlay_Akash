@@ -5,6 +5,8 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -18,6 +20,7 @@ import java.io.IOException;
 @Component
 @RequiredArgsConstructor
 public class JwtFilter extends OncePerRequestFilter {
+    private static final Logger log = LoggerFactory.getLogger(JwtFilter.class);
 
     private final JwtService jwtService;
     private final CustomUserDetailsService userDetailsService;
@@ -42,6 +45,7 @@ public class JwtFilter extends OncePerRequestFilter {
             userIdStr = jwtService.getUserIdFromToken(jwt);
 
             if (userIdStr != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+                log.debug("Authenticating user with id: {}", userIdStr);
                 if (jwtService.isTokenValid(jwt)) {
                     UserDetails userDetails = this.userDetailsService.loadUserByUsername(userIdStr);
                     UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
@@ -59,6 +63,7 @@ public class JwtFilter extends OncePerRequestFilter {
                 }
             }
         } catch (Exception e) {
+            log.warn("JWT authentication failed: {}", e.getMessage());
             // Token is invalid/expired. The context remains null, and Spring Security will
             // return 401/403.
         }

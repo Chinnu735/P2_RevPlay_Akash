@@ -1,9 +1,11 @@
 package com.revplay.app.controller;
 
 import com.revplay.app.dto.*;
-import com.revplay.app.service.PodcastEpisodeService;
+import com.revplay.app.service.IPodcastEpisodeService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -14,11 +16,13 @@ import java.util.List;
 @RequestMapping("/api/podcast-episodes")
 @RequiredArgsConstructor
 public class PodcastEpisodeController {
+    private static final Logger log = LoggerFactory.getLogger(PodcastEpisodeController.class);
 
-    private final PodcastEpisodeService episodeService;
+    private final IPodcastEpisodeService episodeService;
 
     @PostMapping
     public ResponseEntity<PodcastEpisodeResponse> create(@Valid @RequestBody PodcastEpisodeRequest request) {
+        log.info("POST /api/podcast-episodes - title: {}", request.getTitle());
         return ResponseEntity.status(HttpStatus.CREATED).body(episodeService.create(request));
     }
 

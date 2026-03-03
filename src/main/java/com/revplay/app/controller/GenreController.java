@@ -1,9 +1,11 @@
 package com.revplay.app.controller;
 
 import com.revplay.app.dto.*;
-import com.revplay.app.service.GenreService;
+import com.revplay.app.service.IGenreService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -14,11 +16,13 @@ import java.util.List;
 @RequestMapping("/api/genres")
 @RequiredArgsConstructor
 public class GenreController {
+    private static final Logger log = LoggerFactory.getLogger(GenreController.class);
 
-    private final GenreService genreService;
+    private final IGenreService genreService;
 
     @PostMapping
     public ResponseEntity<GenreResponse> create(@Valid @RequestBody GenreRequest request) {
+        log.info("POST /api/genres - name: {}", request.getName());
         return ResponseEntity.status(HttpStatus.CREATED).body(genreService.create(request));
     }
 

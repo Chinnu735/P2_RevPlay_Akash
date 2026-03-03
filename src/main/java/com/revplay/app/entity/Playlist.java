@@ -26,8 +26,7 @@ public class Playlist {
     @Column(name = "name", length = 200, nullable = false)
     private String name;
 
-    @Lob
-    @Column(name = "description")
+    @Column(name = "description", length = 255)
     private String description;
 
     @Column(name = "cover_image", length = 500)

@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard — RevPlay</title>
     <link rel="stylesheet" th:href="@{/css/style.css}">
+    <script>if (!localStorage.getItem('user')) window.location.replace('/login');</script>
 </head>
 
 <body class="">
@@ -211,9 +212,28 @@
                         placeholder="Podcast Title" required></div>
                 <div class="form-group"><label>Description</label><textarea id="podcastDesc" class="form-control"
                         rows="3" placeholder="What is this about?"></textarea></div>
-                <div class="form-group"><label>Cover Image URL</label><input type="url" id="podcastCover"
+                <div class="form-group"><label>Cover Image URL (optional)</label><input type="url" id="podcastCover"
                         class="form-control" placeholder="https://…jpg"></div>
                 <button type="submit" class="btn btn-primary w-full">Create Podcast</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Edit Podcast Modal -->
+    <div class="modal-backdrop" id="editPodcastModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>Edit Podcast</h3><button class="modal-close" onclick="hideModal('editPodcastModal')">✕</button>
+            </div>
+            <form onsubmit="updatePodcast(event)">
+                <input type="hidden" id="editPodcastId">
+                <div class="form-group"><label>Title</label><input type="text" id="editPodcastTitle"
+                        class="form-control" required></div>
+                <div class="form-group"><label>Description</label><textarea id="editPodcastDesc" class="form-control"
+                        rows="3"></textarea></div>
+                <div class="form-group"><label>Cover Image URL (optional)</label><input type="url" id="editPodcastCover"
+                        class="form-control"></div>
+                <button type="submit" class="btn btn-primary w-full">Save Changes</button>
             </form>
         </div>
     </div>
@@ -305,19 +325,22 @@
                 const d = await api(`/api/analytics/artist/${artistId}/dashboard`);
 
                 // 1. Stats
-                document.getElementById('statSongs').textContent = d.totalSongs;
-                document.getElementById('statPlays').textContent = d.totalPlays;
-                document.getElementById('statFavs').textContent = d.totalFavorites;
+                const elSongs = document.getElementById('statSongs');
+                const elPlays = document.getElementById('statPlays');
+                const elFavs = document.getElementById('statFavs');
+                if (elSongs) elSongs.textContent = d.totalSongs || 0;
+                if (elPlays) elPlays.textContent = d.totalPlays || 0;
+                if (elFavs) elFavs.textContent = d.totalFavorites || 0;
 
                 // 2. Songs
                 const songsList = document.getElementById('mySongsList');
                 if (d.mySongs && d.mySongs.length) {
                     songsList.innerHTML = d.mySongs.map((s, i) => {
                         const row = ui.songRow(s, i);
-                        return row.replace('<div class="song-actions">',
-                            `<div class="song-actions" style="opacity:1;">
-                                <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();editSong(${s.id})" title="Edit">✏️</button>
-                                <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();deleteSong(${s.id}, this)" title="Delete">✕</button>`);
+                        return row.replace('<button class="btn-add-playlist"',
+                            `<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();editSong(${s.id})" title="Edit">✏️</button>
+                                <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();deleteSong(${s.id}, this)" title="Delete">✕</button>
+                                <button class="btn-add-playlist"`);
                     }).join('');
                 } else {
                     songsList.innerHTML = ui.empty('🎵', 'No songs yet.');
@@ -343,8 +366,11 @@
                 if (d.myPodcasts && d.myPodcasts.length) {
                     podcastGrid.innerHTML = d.myPodcasts.map(p => {
                         const card = ui.card(p, 'podcast');
-                        return card.replace('class="card">', 'class="card" style="position:relative;">')
-                            .replace('</a>', `</a><button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();deletePodcast(${p.id}, this)" style="position:absolute;top:8px;right:8px;background:rgba(0,0,0,0.5);color:white;border-radius:50%;width:32px;height:32px;padding:0;display:flex;align-items:center;justify-content:center;z-index:1;">✕</button>`);
+                        return card.replace('class="card">', 'class="card" style="position:relative;padding-bottom:3rem;">')
+                            .replace('</a>', `</a>
+                                <a href="/podcast/${p.id}" onclick="event.stopPropagation()" class="btn btn-primary btn-sm" style="position:absolute;bottom:8px;left:50%;transform:translateX(-50%);z-index:1;font-size:0.75rem;padding:0.4rem 1rem;white-space:nowrap;border-radius:20px;">Manage Episodes</a>
+                                <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();editPodcast(${p.id})" style="position:absolute;top:8px;right:44px;background:rgba(0,0,0,0.5);color:white;border-radius:50%;width:32px;height:32px;padding:0;display:flex;align-items:center;justify-content:center;z-index:1;" title="Edit">✏️</button>
+                                <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();deletePodcast(${p.id}, this)" style="position:absolute;top:8px;right:8px;background:rgba(0,0,0,0.5);color:white;border-radius:50%;width:32px;height:32px;padding:0;display:flex;align-items:center;justify-content:center;z-index:1;" title="Delete">✕</button>`);
                     }).join('');
                 } else {
                     podcastGrid.innerHTML = ui.empty('🎙️', 'No podcasts.');
@@ -433,6 +459,7 @@
 
             try {
                 let audioUrl = '';
+                let durationPayload = 0;
                 const fileInput = document.getElementById('songFile');
                 const urlInput = document.getElementById('songAudioUrl');
                 const isFileMode = !document.getElementById('fileUploadMode').classList.contains('hidden');
@@ -442,17 +469,43 @@
                     formData.append('file', fileInput.files[0]);
                     document.getElementById('uploadProgress').classList.remove('hidden');
 
-                    const response = await fetch('/api/upload/song', {
-                        method: 'POST',
-                        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
-                        body: formData
+                    audioUrl = await new Promise((resolve, reject) => {
+                        const xhr = new XMLHttpRequest();
+                        xhr.open('POST', '/api/upload/song');
+                        xhr.setRequestHeader('Authorization', 'Bearer ' + localStorage.getItem('token'));
+
+                        xhr.upload.onprogress = (event) => {
+                            if (event.lengthComputable) {
+                                const percent = (event.loaded / event.total) * 100;
+                                document.getElementById('uploadBar').style.width = percent + '%';
+                                document.getElementById('uploadStatus').textContent = 'Uploading...';
+                            }
+                        };
+
+                        xhr.onload = () => {
+                            if (xhr.status >= 200 && xhr.status < 300) {
+                                const data = JSON.parse(xhr.responseText);
+                                document.getElementById('uploadBar').style.width = '100%';
+                                document.getElementById('uploadStatus').textContent = 'Finalizing...';
+                                resolve(data.url);
+                            } else {
+                                const err = JSON.parse(xhr.responseText || '{}');
+                                reject(new Error(err.error || 'Upload failed'));
+                            }
+                        };
+
+                        xhr.onerror = () => reject(new Error('Network error during upload'));
+                        xhr.send(formData);
                     });
 
-                    const result = await response.json();
-                    if (!response.ok) throw new Error(result.error || 'Upload failed');
-                    audioUrl = result.url;
-                    document.getElementById('uploadBar').style.width = '100%';
-                    document.getElementById('uploadStatus').textContent = 'Uploaded!';
+                    // Extract duration from the uploaded file's server URL
+                    durationPayload = await new Promise((resolve) => {
+                        const tempAudio = new Audio(audioUrl);
+                        tempAudio.addEventListener('loadedmetadata', () => {
+                            resolve(Math.round(tempAudio.duration));
+                        });
+                        tempAudio.addEventListener('error', () => resolve(0));
+                    });
                 } else {
                     audioUrl = urlInput.value.trim();
                 }
@@ -463,6 +516,7 @@
                     artistId: artistId,
                     title: document.getElementById('songTitle').value.trim(),
                     audioUrl: audioUrl,
+                    duration: durationPayload,
                     coverImage: document.getElementById('songCoverImage').value.trim() || null,
                     releaseDate: document.getElementById('songReleaseDate').value || null,
                     albumId: document.getElementById('songAlbumId').value || null,
@@ -471,7 +525,7 @@
                 });
 
                 hideModal('addSongModal');
-                loadMySongs(artistId);
+                loadAllData(artistId);
                 showToast('Song uploaded!');
                 e.target.reset();
                 document.getElementById('uploadProgress').classList.add('hidden');
@@ -508,12 +562,40 @@
                     releaseDate: document.getElementById('albumDate').value || null
                 });
                 hideModal('addAlbumModal');
-                loadMyAlbums(artistId);
-                if (confirm('Album created! Upload a song to it now?')) {
+                document.getElementById('albumName').value = '';
+                document.getElementById('albumDesc').value = '';
+                document.getElementById('albumCoverImage').value = '';
+                document.getElementById('albumDate').value = '';
+                loadAllData(artistId);
+                showToast('Album created!', 'success');
+                if (confirm('Upload a song to it now?')) {
                     showModal('addSongModal');
                     pendingAlbumSelectionId = created.id;
                 }
-            } catch (e) { showToast('Failed to create album', 'error'); }
+            } catch (e) { showToast('Failed to create album: ' + (e.message || ''), 'error'); }
+        }
+
+        async function addPodcast(e) {
+            e.preventDefault();
+            const user = getUser();
+            const artistId = user.artistProfileId;
+            const btn = e.target.querySelector('button[type=submit]');
+            btn.disabled = true; btn.textContent = 'Creating...';
+            try {
+                await api('/api/podcasts', 'POST', {
+                    artistId: artistId,
+                    title: document.getElementById('podcastTitle').value.trim(),
+                    description: document.getElementById('podcastDesc').value.trim(),
+                    coverImage: document.getElementById('podcastCover').value.trim() || null
+                });
+                hideModal('addPodcastModal');
+                document.getElementById('podcastTitle').value = '';
+                document.getElementById('podcastDesc').value = '';
+                document.getElementById('podcastCover').value = '';
+                loadAllData(artistId);
+                showToast('Podcast created!', 'success');
+            } catch (err) { showToast('Failed to create podcast: ' + (err.message || ''), 'error'); }
+            btn.disabled = false; btn.textContent = 'Create Podcast';
         }
 
         async function loadMyPodcasts(artistId) {
@@ -535,6 +617,37 @@
                 showToast('Deleted');
                 if (el) el.closest('.song-row').remove();
             } catch (e) { showToast('Failed', 'error'); }
+        }
+
+        async function editPodcast(id) {
+            try {
+                const p = await api(`/api/podcasts/${id}`);
+                document.getElementById('editPodcastId').value = p.id;
+                document.getElementById('editPodcastTitle').value = p.title || '';
+                document.getElementById('editPodcastDesc').value = p.description || '';
+                document.getElementById('editPodcastCover').value = p.coverImage || '';
+                showModal('editPodcastModal');
+            } catch (e) { showToast('Could not load podcast', 'error'); }
+        }
+
+        async function updatePodcast(e) {
+            e.preventDefault();
+            const id = document.getElementById('editPodcastId').value;
+            const user = getUser();
+            const btn = e.target.querySelector('button[type=submit]');
+            btn.disabled = true; btn.textContent = 'Saving...';
+            try {
+                await api(`/api/podcasts/${id}`, 'PUT', {
+                    artistId: user.artistProfileId,
+                    title: document.getElementById('editPodcastTitle').value.trim(),
+                    description: document.getElementById('editPodcastDesc').value.trim(),
+                    coverImage: document.getElementById('editPodcastCover').value.trim() || null
+                });
+                hideModal('editPodcastModal');
+                showToast('Podcast updated!');
+                if (user && user.artistProfileId) loadAllData(user.artistProfileId);
+            } catch (err) { showToast('Update failed', 'error'); }
+            btn.disabled = false; btn.textContent = 'Save Changes';
         }
 
         async function deletePodcast(id, el) {
@@ -596,7 +709,7 @@
                 document.getElementById('editAlbumId').value = id;
                 document.getElementById('editAlbumName').value = d.albumName || '';
                 document.getElementById('editAlbumDesc').value = d.description || '';
-                document.getElementById('editAlbumCover').value = d.coverImage || '';
+                document.getElementById('editAlbumCover').value = d.coverImageUrl || '';
                 document.getElementById('editAlbumDate').value = d.releaseDate || '';
                 showModal('editAlbumModal');
             } catch (e) { showToast('Load missing detail', 'error'); } // backend detail call missing some fields probably, let's grab directly if needed. Wait, detail call does contain them in the implementation.

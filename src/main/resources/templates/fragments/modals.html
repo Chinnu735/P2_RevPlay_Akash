@@ -21,37 +21,39 @@
                     Playlist</button>
             </div>
         </div>
-        <!-- Create Playlist Modal -->
-        <div class="modal-backdrop" id="createPlaylistModal">
-            <div class="modal">
-                <div class="modal-header">
-                    <h3>Create Playlist</h3><button class="modal-close"
-                        onclick="hideModal('createPlaylistModal')">✕</button>
-                </div>
-                <form onsubmit="createPlaylist(event)">
-                    <div class="form-group"><label>Name</label><input type="text" id="playlistName" class="form-control"
-                            placeholder="My Playlist" required></div>
-                    <div class="form-group"><label>Description</label><textarea id="playlistDesc" class="form-control"
-                            rows="3" placeholder="Optional description"></textarea></div>
-                    <div class="form-group"><label>Privacy</label><select id="playlistPrivacy" class="form-control">
-                            <option value="private">Private</option>
-                            <option value="public">Public</option>
-                        </select></div>
-                    <button type="submit" class="btn btn-primary w-full">Create</button>
-                </form>
-            </div>
-        </div>
+    </div>
 
-        <!-- Queue Modal -->
-        <div class="modal-backdrop" id="queueModal">
-            <div class="modal">
-                <div class="modal-header">
-                    <h3>Playback Queue</h3>
-                    <button class="modal-close" onclick="hideModal('queueModal')">✕</button>
-                </div>
-                <div id="queueList" style="max-height:400px;overflow-y:auto;"></div>
+    <!-- Create Playlist Modal -->
+    <div class="modal-backdrop" id="createPlaylistModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>Create Playlist</h3><button class="modal-close"
+                    onclick="hideModal('createPlaylistModal')">✕</button>
             </div>
+            <form onsubmit="createPlaylist(event)">
+                <div class="form-group"><label>Name</label><input type="text" id="playlistName" class="form-control"
+                        placeholder="My Playlist" required></div>
+                <div class="form-group"><label>Description</label><textarea id="playlistDesc" class="form-control"
+                        rows="3" placeholder="Optional description"></textarea></div>
+                <div class="form-group"><label>Privacy</label><select id="playlistPrivacy" class="form-control">
+                        <option value="private">Private</option>
+                        <option value="public">Public</option>
+                    </select></div>
+                <button type="submit" class="btn btn-primary w-full">Create</button>
+            </form>
         </div>
     </div>
+
+    <!-- Queue Modal -->
+    <div class="modal-backdrop" id="queueModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>Playback Queue</h3>
+                <button class="modal-close" onclick="hideModal('queueModal')">✕</button>
+            </div>
+            <div id="queueList" style="max-height:400px;overflow-y:auto;"></div>
+        </div>
+    </div>
+</div>
 
 </html>

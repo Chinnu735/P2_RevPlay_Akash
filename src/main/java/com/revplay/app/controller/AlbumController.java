@@ -1,9 +1,11 @@
 package com.revplay.app.controller;
 
 import com.revplay.app.dto.*;
-import com.revplay.app.service.AlbumService;
+import com.revplay.app.service.IAlbumService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -14,21 +16,25 @@ import java.util.List;
 @RequestMapping("/api/albums")
 @RequiredArgsConstructor
 public class AlbumController {
+    private static final Logger log = LoggerFactory.getLogger(AlbumController.class);
 
-    private final AlbumService albumService;
+    private final IAlbumService albumService;
 
     @PostMapping
     public ResponseEntity<AlbumResponse> create(@Valid @RequestBody AlbumRequest request) {
+        log.info("POST /api/albums - name: {}", request.getName());
         return ResponseEntity.status(HttpStatus.CREATED).body(albumService.create(request));
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<AlbumResponse> getById(@PathVariable Long id) {
+        log.info("GET /api/albums/{}", id);
         return ResponseEntity.ok(albumService.getById(id));
     }
 
     @GetMapping
     public ResponseEntity<List<AlbumResponse>> getAll() {
+        log.info("GET /api/albums");
         return ResponseEntity.ok(albumService.getAll());
     }
 

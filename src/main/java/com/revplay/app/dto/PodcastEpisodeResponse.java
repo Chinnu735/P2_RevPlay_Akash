@@ -15,7 +15,7 @@ public class PodcastEpisodeResponse {
     private String title;
     private String description;
     private String audioUrl;
-    private Long duration;
+    private Integer duration;
     private LocalDate releaseDate;
     private LocalDateTime createdAt;
 }

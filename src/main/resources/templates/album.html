@@ -6,14 +6,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Album — RevPlay</title>
     <link rel="stylesheet" th:href="@{/css/style.css}">
+    <script>if (!localStorage.getItem('user')) window.location.replace('/login');</script>
 </head>
 
 <body class="app-bg">
 
     <nav class="navbar">
         <a href="/home" class="logo">
-            <span class="logo-mark"><span class="eq-bar"></span><span class="eq-bar"></span><span
-                    class="eq-bar"></span><span class="eq-bar"></span></span> RevPlay
+            <img th:src="@{/images/logo.png}" alt="Logo"
+                style="width: 32px; height: 32px; border-radius: 4px; filter: invert(1);"> RevPlay
         </a>
         <div class="nav-links" id="navLinks">
             <a href="/home">Home</a>
@@ -46,7 +47,14 @@
                         <a href="#" id="albumArtistLink" style="color:var(--text-1);font-weight:500;"></a>
                         <span id="albumDate"></span><span id="albumTracks"></span>
                     </div>
-                    <div class="mt-2"><button class="btn btn-primary" onclick="playAll()">▶ Play All</button></div>
+                    <div class="mt-2" style="display:flex;gap:0.75rem;">
+                        <button class="btn btn-primary" onclick="playAll()">▶ Play All</button>
+                        <div id="ownerControls" style="display:none;gap:0.75rem;">
+                            <button class="btn btn-secondary" onclick="editAlbum()">✏️ Edit Album</button>
+                            <button class="btn btn-secondary" onclick="deleteAlbum()" style="color:var(--danger);">✕
+                                Delete Album</button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </section>
@@ -64,6 +72,55 @@
         <section class="section">
             <div id="trackList"></div>
         </section>
+
+        <!-- Edit Album Modal -->
+        <div class="modal-backdrop" id="editAlbumModal">
+            <div class="modal">
+                <div class="modal-header">
+                    <h3>Edit Album</h3><button class="modal-close" onclick="hideModal('editAlbumModal')">✕</button>
+                </div>
+                <form onsubmit="updateAlbum(event)">
+                    <input type="hidden" id="editAlbumId">
+                    <div class="form-group"><label>Name</label><input type="text" id="editAlbumName"
+                            class="form-control" required></div>
+                    <div class="form-group"><label>Description</label><textarea id="editAlbumDescField"
+                            class="form-control" rows="3"></textarea></div>
+                    <div class="form-group"><label>Cover Image URL (optional)</label><input type="url"
+                            id="editAlbumCover" class="form-control"></div>
+                    <div class="form-group"><label>Release Date</label><input type="date" id="editAlbumDate"
+                            class="form-control"></div>
+                    <button type="submit" class="btn btn-primary w-full">Save Changes</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Edit Song Modal -->
+        <div class="modal-backdrop" id="editSongModal">
+            <div class="modal">
+                <div class="modal-header">
+                    <h3>Edit Song</h3><button class="modal-close" onclick="hideModal('editSongModal')">✕</button>
+                </div>
+                <form onsubmit="updateSong(event)">
+                    <input type="hidden" id="editSongId">
+                    <div class="form-group"><label>Title</label><input type="text" id="editSongTitle"
+                            class="form-control" required></div>
+                    <div class="form-group"><label>Cover Image URL (optional)</label><input type="url"
+                            id="editSongCover" class="form-control"></div>
+                    <div class="form-group"><label>Release Date</label><input type="date" id="editSongDate"
+                            class="form-control"></div>
+                    <div class="form-group"><label>Genre</label><select id="editSongGenreId" class="form-control">
+                            <option value="">Select</option>
+                        </select></div>
+                    <div class="form-group"><label>Visibility</label>
+                        <select id="editSongVisibility" class="form-control">
+                            <option value="public">Public</option>
+                            <option value="unlisted">Unlisted</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-full">Save Changes</button>
+                </form>
+            </div>
+        </div>
     </main>
 
     <div th:replace="~{fragments/footer :: footerBase}"></div>
@@ -95,16 +152,139 @@
 
                 if (user && user.role === 'artist' && user.artistProfileId === d.artistId) {
                     document.getElementById('albumAdder').style.display = 'block';
+                    document.getElementById('ownerControls').style.display = 'flex';
                 }
 
                 const list = document.getElementById('trackList');
+                const isOwner = user && user.role === 'artist' && user.artistProfileId === d.artistId;
                 list.innerHTML = d.tracks && d.tracks.length
-                    ? d.tracks.map((s, i) => ui.songRow(s, i)).join('')
+                    ? d.tracks.map((s, i) => {
+                        let row = ui.songRow(s, i);
+                        if (isOwner) {
+                            row = row.replace('<button class="btn-add-playlist"',
+                                `<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();editSong(${s.id})" title="Edit">✏️</button>
+                                    <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();deleteSong(${s.id}, this)" title="Delete">✕</button>
+                                    <button class="btn-add-playlist"`);
+                        }
+                        return row;
+                    }).join('')
                     : ui.empty('🎶', 'No tracks in this album.');
             } catch (e) { document.getElementById('trackList').innerHTML = ui.empty('❌', 'Could not load album.'); }
         }
 
-        function playAll() { showToast('Playing album…'); }
+        async function editAlbum() {
+            const albumId = window.location.pathname.split('/').pop();
+            try {
+                const d = await api(`/api/analytics/album/${albumId}/detail`);
+                document.getElementById('editAlbumId').value = albumId;
+                document.getElementById('editAlbumName').value = d.albumName || '';
+                document.getElementById('editAlbumDescField').value = d.description || '';
+                document.getElementById('editAlbumCover').value = d.coverImageUrl || '';
+                document.getElementById('editAlbumDate').value = d.releaseDate || '';
+                showModal('editAlbumModal');
+            } catch (e) { showToast('Could not load album info', 'error'); }
+        }
+
+        async function updateAlbum(e) {
+            e.preventDefault();
+            const id = document.getElementById('editAlbumId').value;
+            const user = getUser();
+            const btn = e.target.querySelector('button[type=submit]');
+            btn.disabled = true; btn.textContent = 'Saving...';
+            try {
+                await api(`/api/albums/${id}`, 'PUT', {
+                    artistId: user.artistProfileId,
+                    name: document.getElementById('editAlbumName').value.trim(),
+                    description: document.getElementById('editAlbumDescField').value.trim(),
+                    coverImage: document.getElementById('editAlbumCover').value.trim() || null,
+                    releaseDate: document.getElementById('editAlbumDate').value || null
+                });
+                hideModal('editAlbumModal');
+                showToast('Album updated!');
+                loadAlbum();
+            } catch (err) { showToast('Update failed', 'error'); }
+            btn.disabled = false; btn.textContent = 'Save Changes';
+        }
+
+        async function deleteAlbum() {
+            if (!confirm('Delete this album completely?')) return;
+            const id = window.location.pathname.split('/').pop();
+            try {
+                await api(`/api/albums/${id}`, 'DELETE');
+                showToast('Album deleted');
+                window.location.href = '/artist-dashboard';
+            } catch (err) { showToast('Failed to delete', 'error'); }
+        }
+
+        async function editSong(id) {
+            try {
+                const song = await api(`/api/songs/${id}`);
+                document.getElementById('editSongId').value = song.id;
+                document.getElementById('editSongTitle').value = song.title || '';
+                document.getElementById('editSongCover').value = song.coverImage || '';
+                document.getElementById('editSongDate').value = song.releaseDate || '';
+                document.getElementById('editSongVisibility').value = song.visibility || 'public';
+
+                // Load genres if not already
+                const genres = await api('/api/genres');
+                const sel = document.getElementById('editSongGenreId');
+                sel.innerHTML = '<option value="">Select</option>';
+                genres.forEach(g => {
+                    const o = document.createElement('option');
+                    o.value = g.id; o.textContent = g.name;
+                    sel.appendChild(o);
+                });
+                sel.value = song.genreId || '';
+
+                showModal('editSongModal');
+            } catch (e) { showToast('Could not load song', 'error'); }
+        }
+
+        async function updateSong(e) {
+            e.preventDefault();
+            const id = document.getElementById('editSongId').value;
+            const user = getUser();
+            const btn = e.target.querySelector('button[type=submit]');
+            btn.disabled = true; btn.textContent = 'Saving...';
+            try {
+                const originalSong = await api(`/api/songs/${id}`);
+                await api(`/api/songs/${id}`, 'PUT', {
+                    ...originalSong,
+                    title: document.getElementById('editSongTitle').value.trim(),
+                    coverImage: document.getElementById('editSongCover').value.trim() || null,
+                    releaseDate: document.getElementById('editSongDate').value || null,
+                    genreId: document.getElementById('editSongGenreId').value || null,
+                    visibility: document.getElementById('editSongVisibility').value
+                });
+                hideModal('editSongModal');
+                showToast('Song updated!');
+                loadAlbum();
+            } catch (err) { showToast('Update failed', 'error'); }
+            btn.disabled = false; btn.textContent = 'Save Changes';
+        }
+
+        async function deleteSong(id, el) {
+            if (!confirm('Delete this song?')) return;
+            try {
+                await api(`/api/songs/${id}`, 'DELETE');
+                showToast('Deleted');
+                if (el) el.closest('.song-row').remove();
+            } catch (e) { showToast('Failed', 'error'); }
+        }
+
+        async function playAll() {
+            const albumId = window.location.pathname.split('/').pop();
+            try {
+                const d = await api(`/api/analytics/album/${albumId}/detail`);
+                if (!d.tracks || !d.tracks.length) { showToast('No tracks in this album', 'error'); return; }
+                // Build and play the full track list
+                playlist = d.tracks.map(t => ({ id: t.id, title: t.title, artistName: t.artistName || d.artistName || '', audioUrl: t.audioUrl, coverImage: t.coverImage }));
+                originalPlaylist = [...playlist];
+                playlistIndex = 0;
+                playSong(playlist[0].id, playlist[0].title, playlist[0].artistName, false);
+                showToast('Playing album…');
+            } catch (e) { showToast('Could not load tracks', 'error'); }
+        }
         function goToDashboardToAddSong() {
             const albumId = window.location.pathname.split('/').pop();
             window.location.href = `/artist-dashboard?action=upload_song&albumId=${albumId}`;

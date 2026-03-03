@@ -15,10 +15,7 @@ public class ArtistProfileMapper {
                 .genreName(profile.getGenre() != null ? profile.getGenre().getName() : null)
                 .bannerImage(profile.getBannerImage())
                 .instagramLink(profile.getInstagramLink())
-                .twitterLink(profile.getTwitterLink())
                 .youtubeLink(profile.getYoutubeLink())
-                .spotifyLink(profile.getSpotifyLink())
-                .websiteLink(profile.getWebsiteLink())
                 .createdAt(profile.getCreatedAt())
                 .build();
     }
@@ -30,10 +27,7 @@ public class ArtistProfileMapper {
         profile.setGenre(genre);
         profile.setBannerImage(request.getBannerImage());
         profile.setInstagramLink(request.getInstagramLink());
-        profile.setTwitterLink(request.getTwitterLink());
         profile.setYoutubeLink(request.getYoutubeLink());
-        profile.setSpotifyLink(request.getSpotifyLink());
-        profile.setWebsiteLink(request.getWebsiteLink());
         return profile;
     }
 
@@ -42,9 +36,6 @@ public class ArtistProfileMapper {
         profile.setGenre(genre);
         profile.setBannerImage(request.getBannerImage());
         profile.setInstagramLink(request.getInstagramLink());
-        profile.setTwitterLink(request.getTwitterLink());
         profile.setYoutubeLink(request.getYoutubeLink());
-        profile.setSpotifyLink(request.getSpotifyLink());
-        profile.setWebsiteLink(request.getWebsiteLink());
     }
 }

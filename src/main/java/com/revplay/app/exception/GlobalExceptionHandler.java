@@ -1,54 +1,67 @@
 package com.revplay.app.exception;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.time.LocalDateTime;
-import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+    private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
     @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<Map<String, Object>> handleNotFound(ResourceNotFoundException ex) {
-        return buildResponse(HttpStatus.NOT_FOUND, ex.getMessage());
+        log.warn("Resource not found: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of(
+                "status", 404,
+                "error", "Not Found",
+                "message", ex.getMessage(),
+                "timestamp", LocalDateTime.now().toString()));
+    }
+
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleResourceNotFound(NoResourceFoundException ex) {
+        log.warn("Resource missing (likely browser request): {}", ex.getResourcePath());
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of(
+                "status", 404,
+                "error", "Not Found",
+                "message", "Resource not found: " + ex.getResourcePath(),
+                "timestamp", LocalDateTime.now().toString()));
     }
 
     @ExceptionHandler(DuplicateResourceException.class)
     public ResponseEntity<Map<String, Object>> handleDuplicate(DuplicateResourceException ex) {
-        return buildResponse(HttpStatus.CONFLICT, ex.getMessage());
+        log.warn("Duplicate resource: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of(
+                "status", 409,
+                "error", "Conflict",
+                "message", ex.getMessage(),
+                "timestamp", LocalDateTime.now().toString()));
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<Map<String, Object>> handleBadRequest(IllegalArgumentException ex) {
-        return buildResponse(HttpStatus.BAD_REQUEST, ex.getMessage());
-    }
-
-    @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<Map<String, Object>> handleValidation(MethodArgumentNotValidException ex) {
-        String errors = ex.getBindingResult().getFieldErrors().stream()
-                .map(fe -> fe.getField() + ": " + fe.getDefaultMessage())
-                .collect(Collectors.joining(", "));
-        return buildResponse(HttpStatus.BAD_REQUEST, errors);
+        log.warn("Bad request: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of(
+                "status", 400,
+                "error", "Bad Request",
+                "message", ex.getMessage(),
+                "timestamp", LocalDateTime.now().toString()));
     }
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, Object>> handleGeneral(Exception ex) {
-        return buildResponse(HttpStatus.INTERNAL_SERVER_ERROR,
-                "An unexpected error occurred: " + ex.getMessage());
-    }
-
-    private ResponseEntity<Map<String, Object>> buildResponse(HttpStatus status, String message) {
-        Map<String, Object> body = new LinkedHashMap<>();
-        body.put("success", false);
-        body.put("status", status.value());
-        body.put("message", message);
-        body.put("timestamp", LocalDateTime.now().toString());
-        return ResponseEntity.status(status).body(body);
+        log.error("Unexpected error occurred", ex);
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
+                "status", 500,
+                "error", "Internal Server Error",
+                "message", ex.getMessage() != null ? ex.getMessage() : "Unexpected error",
+                "timestamp", LocalDateTime.now().toString()));
     }
 }

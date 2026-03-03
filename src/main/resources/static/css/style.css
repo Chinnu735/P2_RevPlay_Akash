@@ -186,54 +186,15 @@ h4 {
     gap: 0.5rem;
 }
 
-.logo .logo-mark {
-    width: 34px;
-    height: 34px;
-    border-radius: 9px;
-    background: var(--accent);
-    display: flex;
-    align-items: flex-end;
-    justify-content: center;
-    gap: 2.5px;
-    padding: 6px 5px;
-}
-
-.logo .logo-mark .eq-bar {
-    width: 3px;
-    border-radius: 2px;
-    background: var(--bg);
-    animation: eqPulse 1.2s ease-in-out infinite;
-}
-
-.logo .logo-mark .eq-bar:nth-child(1) {
-    height: 40%;
-    animation-delay: 0s;
-}
-
-.logo .logo-mark .eq-bar:nth-child(2) {
-    height: 70%;
-    animation-delay: 0.15s;
-}
-
-.logo .logo-mark .eq-bar:nth-child(3) {
-    height: 50%;
-    animation-delay: 0.3s;
-}
-
-.logo .logo-mark .eq-bar:nth-child(4) {
-    height: 80%;
-    animation-delay: 0.45s;
-}
-
-@keyframes eqPulse {
-
-    0%,
-    100% {
-        transform: scaleY(1);
+@keyframes fade-in {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
     }
 
-    50% {
-        transform: scaleY(0.5);
+    to {
+        opacity: 1;
+        transform: translateY(0);
     }
 }
 
@@ -633,8 +594,68 @@ h4 {
 /* ═══════════════════════════════════════════════════════════════
    PAGE CONTENT
    ═══════════════════════════════════════════════════════════════ */
+/* ── Artist Profile Overhaul ──────────────────────────────────── */
+.artist-hero {
+    position: relative;
+    width: 100%;
+    height: 400px;
+    background-color: var(--bg-1);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+}
+
+.artist-hero-banner {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-size: cover;
+    background-position: center;
+    transition: opacity 0.5s var(--ease);
+}
+
+.artist-hero-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(0deg, rgba(6, 6, 6, 0.95) 0%, rgba(6, 6, 6, 0.4) 100%);
+    pointer-events: none;
+}
+
+.artist-hero-content {
+    position: relative;
+    z-index: 2;
+    padding: 2.5rem 0;
+    display: flex;
+    align-items: flex-end;
+}
+
+
+
+.artist-hero-info {
+    flex: 1;
+    margin-bottom: 0.5rem;
+}
+
+.artist-hero-name {
+    font-size: 3.5rem;
+    font-weight: 800;
+    margin: 0;
+    line-height: 1;
+}
+
+.artist-hero-bio {
+    max-width: 600px;
+    color: var(--text-2);
+    font-size: 0.95rem;
+    margin-top: 1rem;
+    line-height: 1.6;
+}
+
 .page-content {
-    padding-top: calc(var(--nav-h) + 1.5rem);
+    padding-top: calc(var(--nav-h) + 0rem);
     padding-bottom: calc(var(--player-h) + 2rem);
     min-height: 100vh;
 }
@@ -985,65 +1006,95 @@ h4 {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   PROFILE HEADER
+   PROFILE & ARTIST BANNER
    ═══════════════════════════════════════════════════════════════ */
+.artist-banner {
+    width: 100%;
+    height: 320px;
+    background: var(--bg-2);
+    border-radius: var(--radius);
+    overflow: hidden;
+    position: relative;
+    margin-top: 1rem;
+    display: none;
+    /* Shown via JS for artists */
+    background-size: cover;
+    background-position: center;
+}
+
+.artist-banner::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, transparent 50%, rgba(6, 6, 6, 0.9) 100%);
+}
+
 .profile-header {
     display: flex;
     align-items: flex-end;
     gap: 2rem;
-    padding: 2.5rem 0 1.75rem;
-    border-bottom: 1px solid var(--border-1);
+    padding: 2.5rem var(--radius);
     margin-bottom: 2rem;
+    position: relative;
+    z-index: 10;
+    transition: margin-top 0.3s var(--ease);
+}
+
+/* When banner is present, pull header up */
+.profile-header.has-banner {
+    margin-top: -100px;
+    border-bottom: none;
 }
 
 .profile-avatar {
-    width: 160px;
-    height: 160px;
+    width: 180px;
+    height: 180px;
     border-radius: 50%;
     background: var(--bg-3);
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 3.5rem;
+    font-size: 4rem;
     font-weight: 800;
     color: var(--text-0);
     flex-shrink: 0;
-    border: 2px solid var(--border-2);
+    border: 4px solid var(--bg);
+    box-shadow: var(--shadow-lg);
+    overflow: hidden;
+    position: relative;
+}
+
+.profile-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.profile-info {
+    padding-bottom: 1rem;
 }
 
 .profile-info h1 {
-    margin-bottom: 0.15rem;
-    font-size: 2.25rem;
+    margin-bottom: 0.25rem;
+    font-size: 2.5rem;
+    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
 }
 
-.profile-info .profile-meta {
+.profile-bio {
+    font-size: 1rem;
+    color: var(--text-2);
+    max-width: 600px;
+    line-height: 1.6;
+    margin: 0.75rem 0;
+}
+
+.profile-meta {
     color: var(--text-3);
-    font-size: 0.8rem;
+    font-size: 0.85rem;
     display: flex;
-    gap: 1.25rem;
-    margin-top: 0.5rem;
-}
-
-/* ═══════════════════════════════════════════════════════════════
-   ARTIST BANNER
-   ═══════════════════════════════════════════════════════════════ */
-.artist-banner {
-    width: 100%;
-    height: 280px;
-    background: linear-gradient(180deg, var(--bg-3) 0%, var(--bg) 100%);
-    display: flex;
-    align-items: flex-end;
-    padding: 2rem;
-    position: relative;
-}
-
-.artist-banner-content {
-    position: relative;
-    z-index: 2;
-}
-
-.artist-banner h1 {
-    font-size: 3rem;
+    align-items: center;
+    gap: 1.5rem;
+    margin-top: 0.75rem;
 }
 
 /* ═══════════════════════════════════════════════════════════════

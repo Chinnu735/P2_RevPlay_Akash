@@ -1,40 +1,120 @@
 package com.revplay.app.dto;
 
 import jakarta.validation.constraints.*;
-import lombok.*;
 
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
 public class UserRequest {
     @NotBlank(message = "Email is required")
     @Email(message = "Invalid email format")
-    @Size(max = 255)
     private String email;
 
     @NotBlank(message = "Username is required")
-    @Size(min = 3, max = 100, message = "Username must be 3-100 characters")
+    @Size(min = 3, max = 50)
     private String username;
 
-    @NotBlank(message = "Password is required")
-    @Size(min = 6, max = 255, message = "Password must be at least 6 characters")
     private String password;
 
-    @NotBlank(message = "Role is required")
-    @Size(max = 20)
-    private String role;
+    private String fullName;
 
-    @Size(max = 100)
     private String displayName;
-
     private String bio;
-
-    @Size(max = 500)
     private String profilePicture;
 
-    @Size(max = 255)
-    private String securityQuestion;
+    @NotBlank(message = "Role is required")
+    private String role;
 
-    @Size(max = 255)
+    private String securityQuestion;
     private String securityAnswer;
+
+    private String currentPassword;
+
+    public UserRequest() {
+    }
+
+    public String getEmail() {
+        return email;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
+    }
+
+    public String getUsername() {
+        return username;
+    }
+
+    public void setUsername(String username) {
+        this.username = username;
+    }
+
+    public String getPassword() {
+        return password;
+    }
+
+    public void setPassword(String password) {
+        this.password = password;
+    }
+
+    public String getFullName() {
+        return fullName;
+    }
+
+    public void setFullName(String fullName) {
+        this.fullName = fullName;
+    }
+
+    public String getDisplayName() {
+        return displayName;
+    }
+
+    public void setDisplayName(String displayName) {
+        this.displayName = displayName;
+    }
+
+    public String getBio() {
+        return bio;
+    }
+
+    public void setBio(String bio) {
+        this.bio = bio;
+    }
+
+    public String getProfilePicture() {
+        return profilePicture;
+    }
+
+    public void setProfilePicture(String profilePicture) {
+        this.profilePicture = profilePicture;
+    }
+
+    public String getRole() {
+        return role;
+    }
+
+    public void setRole(String role) {
+        this.role = role;
+    }
+
+    public String getSecurityQuestion() {
+        return securityQuestion;
+    }
+
+    public void setSecurityQuestion(String securityQuestion) {
+        this.securityQuestion = securityQuestion;
+    }
+
+    public String getSecurityAnswer() {
+        return securityAnswer;
+    }
+
+    public void setSecurityAnswer(String securityAnswer) {
+        this.securityAnswer = securityAnswer;
+    }
+
+    public String getCurrentPassword() {
+        return currentPassword;
+    }
+
+    public void setCurrentPassword(String currentPassword) {
+        this.currentPassword = currentPassword;
+    }
 }

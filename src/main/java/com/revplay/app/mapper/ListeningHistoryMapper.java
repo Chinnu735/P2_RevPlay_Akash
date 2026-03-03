@@ -13,6 +13,7 @@ public class ListeningHistoryMapper {
                 .songId(history.getSong().getId())
                 .songTitle(history.getSong().getTitle())
                 .artistName(history.getSong().getArtist().getArtistName())
+                .coverImage(history.getSong().getCoverImage())
                 .playedAt(history.getPlayedAt())
                 .build();
     }

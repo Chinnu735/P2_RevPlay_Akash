@@ -1,9 +1,11 @@
 package com.revplay.app.controller;
 
 import com.revplay.app.dto.*;
-import com.revplay.app.service.ListeningHistoryService;
+import com.revplay.app.service.IListeningHistoryService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -14,11 +16,13 @@ import java.util.List;
 @RequestMapping("/api/listening-history")
 @RequiredArgsConstructor
 public class ListeningHistoryController {
+    private static final Logger log = LoggerFactory.getLogger(ListeningHistoryController.class);
 
-    private final ListeningHistoryService historyService;
+    private final IListeningHistoryService historyService;
 
     @PostMapping
     public ResponseEntity<ListeningHistoryResponse> recordPlay(@Valid @RequestBody ListeningHistoryRequest request) {
+        log.info("POST /api/listening-history - userId: {}, songId: {}", request.getUserId(), request.getSongId());
         return ResponseEntity.status(HttpStatus.CREATED).body(historyService.recordPlay(request));
     }
 

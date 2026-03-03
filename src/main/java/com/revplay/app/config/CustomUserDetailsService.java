@@ -1,8 +1,10 @@
 package com.revplay.app.config;
 
 import com.revplay.app.entity.User;
-import com.revplay.app.repository.UserRepository;
+import com.revplay.app.repository.IUserRepository;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -14,12 +16,15 @@ import java.util.Collections;
 @Service
 @RequiredArgsConstructor
 public class CustomUserDetailsService implements UserDetailsService {
+    private static final Logger log = LoggerFactory.getLogger(CustomUserDetailsService.class);
 
-    private final UserRepository userRepository;
+    private final IUserRepository userRepository;
 
     @Override
     public UserDetails loadUserByUsername(String usernameOrEmailOrId) throws UsernameNotFoundException {
         User user = null;
+
+        log.debug("Loading user by username/email/id: {}", usernameOrEmailOrId);
 
         // JWT Filter passes the Subject (which is the User ID). Try ID first.
         try {

@@ -6,6 +6,85 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Profile — RevPlay</title>
     <link rel="stylesheet" th:href="@{/css/style.css}">
+    <script>if (!localStorage.getItem('user')) window.location.replace('/login');</script>
+    <style>
+        /* ── Profile Avatar Upload Area ──────────────────────────── */
+        .avatar-upload-wrap {
+            position: relative;
+            width: 110px;
+            height: 110px;
+            flex-shrink: 0;
+            cursor: pointer;
+        }
+
+        .avatar-upload-wrap .profile-avatar {
+            width: 110px;
+            height: 110px;
+            font-size: 2.5rem;
+            border-radius: 50%;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--bg-3);
+            color: var(--text-2);
+            font-weight: 700;
+            border: 3px solid var(--border-2);
+
+        }
+
+        .avatar-upload-wrap:hover .profile-avatar {
+            border-color: var(--accent);
+        }
+
+
+        .avatar-upload-wrap .avatar-edit-overlay {
+            position: absolute;
+            bottom: 4px;
+            right: 4px;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: var(--accent);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8rem;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+
+            pointer-events: none;
+        }
+
+        .avatar-upload-wrap:hover .avatar-edit-overlay {
+            background: var(--accent-hover, var(--accent));
+        }
+
+        .avatar-upload-wrap input[type="file"] {
+            position: absolute;
+            inset: 0;
+            opacity: 0;
+            cursor: pointer;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* ── Upload Progress ─────────────────────────────────────── */
+        .pic-upload-bar {
+            height: 3px;
+            border-radius: 2px;
+            background: var(--bg-3);
+            margin-top: 6px;
+            overflow: hidden;
+            display: none;
+        }
+
+        .pic-upload-bar-fill {
+            height: 100%;
+            width: 0%;
+            background: var(--accent);
+            transition: width 0.3s;
+        }
+    </style>
 </head>
 
 <body class="">
@@ -32,24 +111,33 @@
     </nav>
 
     <main class="page-content container">
-        <div id="artistBanner"
-            style="display:none; height: 160px; background-size: cover; background-position: center; border-radius: var(--radius-md) var(--radius-md) 0 0; margin-top: 1rem; position: relative;">
-        </div>
 
-        <section class="section" style="padding-top:1rem;">
-            <div class="profile-header">
-                <div class="profile-avatar" id="profileAvatar">U</div>
+        <section class="section" style="padding-top:2rem;">
+            <div class="profile-header" id="profileHeader" style="border-bottom:none;padding-bottom:0;">
+
+                <!-- Clickable avatar with edit overlay -->
+                <div class="avatar-upload-wrap" title="Click to change profile picture">
+                    <div class="profile-avatar" id="profileAvatar">U</div>
+                    <div class="avatar-edit-overlay">📷</div>
+                    <input type="file" id="editPictureFile" accept="image/*" onchange="previewAvatar(this)">
+                </div>
+
                 <div class="profile-info">
-                    <h1 id="profileName" style="font-size:2rem;">Loading…</h1>
-                    <p class="text-muted" style="font-size:0.85rem;" id="profileEmail"></p>
-                    <p id="profileBioDisplay" style="font-size:0.95rem;margin:0.5rem 0;color:var(--text-1);"></p>
-                    <div id="socialLinksDisplay" style="display:flex;gap:0.75rem;margin:0.5rem 0;"></div>
+                    <h1 id="profileName" style="font-size:1.8rem;margin-bottom:0.2rem;">Loading…</h1>
+                    <p class="text-muted" style="font-size:0.85rem;margin-bottom:0.3rem;" id="profileEmail"></p>
+                    <p id="profileBioDisplay" class="profile-bio" style="font-size:0.85rem;color:var(--text-3);"></p>
+                    <div id="socialLinksDisplay" style="display:flex;gap:0.75rem;margin:0.4rem 0;"></div>
                     <div class="profile-meta">
                         <span class="badge badge-accent" id="profileRole">USER</span>
-                        <span id="profileJoined"></span>
+                        <span id="profileJoined" style="font-size:0.75rem;color:var(--text-4);"></span>
                     </div>
                 </div>
             </div>
+            <!-- Upload progress bar under avatar -->
+            <div class="pic-upload-bar" id="picUploadBar" style="width:110px;margin-top:6px;">
+                <div class="pic-upload-bar-fill" id="picUploadFill"></div>
+            </div>
+            <p id="picUploadStatus" style="font-size:0.7rem;color:var(--text-3);margin-top:4px;"></p>
         </section>
 
         <div class="tabs" style="margin-bottom:1rem;">
@@ -82,20 +170,7 @@
                             class="form-control" placeholder="Name"></div>
                     <div class="form-group"><label>Bio</label><textarea id="editBio" class="form-control" rows="3"
                             placeholder="About you"></textarea></div>
-                    <div class="form-group">
-                        <label>Profile Picture</label>
-                        <div style="display:flex;gap:0.75rem;align-items:center;">
-                            <input type="file" id="editPictureFile" class="form-control" accept="image/*"
-                                style="padding:0.5rem;">
-                        </div>
-                    </div>
-                    <div class="form-group" id="bannerUploadGroup">
-                        <label>Banner Image</label>
-                        <div style="display:flex;gap:0.75rem;align-items:center;">
-                            <input type="file" id="editBannerFile" class="form-control" accept="image/*"
-                                style="padding:0.5rem;">
-                        </div>
-                    </div>
+
                     <div class="form-group" id="socialLinksGroup" style="display:none;">
                         <label>Instagram Link (Optional)</label>
                         <input type="url" id="editInstagram" class="form-control"
@@ -104,7 +179,23 @@
                         <input type="url" id="editYoutube" class="form-control"
                             placeholder="https://youtube.com/c/yourchannel">
                     </div>
+
                     <div class="auth-divider">Security</div>
+                    <div class="form-group">
+                        <label>Security Question</label>
+                        <input type="text" id="editSecurityQuestion" class="form-control"
+                            placeholder="e.g. What is your pet's name?">
+                    </div>
+                    <div class="form-group">
+                        <label>Security Answer</label>
+                        <input type="password" id="editSecurityAnswer" class="form-control"
+                            placeholder="Leave blank to keep current">
+                    </div>
+                    <div class="form-group">
+                        <label>Current Password</label>
+                        <input type="password" id="editCurrentPassword" class="form-control"
+                            placeholder="Required to change password">
+                    </div>
                     <div class="form-group">
                         <label>New Password (Optional)</label>
                         <input type="password" id="editPassword" class="form-control"
@@ -139,18 +230,25 @@
         </div>
     </main>
 
+    <div th:replace="~{fragments/player :: playerBar}"></div>
+    <div th:replace="~{fragments/modals :: modals}"></div>
     <div th:replace="~{fragments/footer :: footerBase}"></div>
     <script th:src="@{/js/app.js}"></script>
     <script>
+        // Tracks the currently saved profile picture URL (filename from server)
+        let currentProfilePicture = '';
+        // Tracks whether a new file was picked but not yet uploaded
+        let pendingPicFile = null;
+
         function initPage() {
             const user = getUser();
             if (!user) return window.location.replace('/login');
 
-            // Initial render from local data
+            // Render from local cache immediately
             document.getElementById('profileName').textContent = user.displayName || user.username || 'User';
             document.getElementById('profileEmail').textContent = user.email || '';
             document.getElementById('profileRole').textContent = (user.role || 'user').toUpperCase();
-            document.getElementById('profileAvatar').textContent = (user.username || 'U').charAt(0).toUpperCase();
+            renderAvatar(user.profilePicture, user.displayName || user.username);
 
             loadStats();
             loadProfile();
@@ -159,6 +257,50 @@
 
         initPage();
 
+        /* ── Avatar helpers ─────────────────────────────────────── */
+        function resolveUrl(pic) {
+            if (!pic) return '';
+            if (pic.startsWith('/') || pic.startsWith('http')) return pic;
+            return '/uploads/' + pic;
+        }
+
+        function renderAvatar(pic, name) {
+            const el = document.getElementById('profileAvatar');
+            if (pic) {
+                const url = resolveUrl(pic);
+                const bust = url.includes('?') ? '&v=' : '?v=' + Date.now();
+                el.innerHTML = `<img src="${url}${bust}" data-retries="0" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" onerror="if(this.dataset.retries < 5){ this.dataset.retries++; setTimeout(()=>this.src='${url}${bust}', 500); } else { this.parentElement.textContent='${(name || 'U').charAt(0).toUpperCase()}'; }">`;
+            } else {
+                el.textContent = (name || 'U').charAt(0).toUpperCase();
+            }
+        }
+
+        function renderNavAvatar(pic, name) {
+            const el = document.getElementById('userAvatar');
+            if (!el) return;
+            if (pic) {
+                const url = resolveUrl(pic);
+                const bust = url.includes('?') ? '&v=' : '?v=' + Date.now();
+                el.innerHTML = `<img src="${url}${bust}" data-retries="0" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" onerror="if(this.dataset.retries < 5){ this.dataset.retries++; setTimeout(()=>this.src='${url}${bust}', 500); } else { this.textContent='${(name || 'U').charAt(0).toUpperCase()}'; }">`;
+            } else {
+                el.textContent = (name || 'U').charAt(0).toUpperCase();
+            }
+        }
+
+        /* Called immediately when user picks a file — shows live preview */
+        function previewAvatar(input) {
+            if (!input.files || !input.files[0]) return;
+            pendingPicFile = input.files[0];
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const el = document.getElementById('profileAvatar');
+                el.innerHTML = `<img src="${e.target.result}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
+            };
+            reader.readAsDataURL(pendingPicFile);
+            showToast('Picture selected — click Save Changes to upload', 'success');
+        }
+
+        /* ── Data loaders ───────────────────────────────────────── */
         function showProfileTab(tab, el) {
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
             el.classList.add('active');
@@ -198,9 +340,6 @@
             } catch (e) { }
         }
 
-        let existingProfilePicture = '';
-        let existingBannerImage = '';
-
         async function loadProfile() {
             const user = getUser();
             try {
@@ -208,140 +347,169 @@
                 document.getElementById('editDisplayName').value = d.displayName || '';
                 document.getElementById('editBio').value = d.bio || '';
                 document.getElementById('profileBioDisplay').textContent = d.bio || '';
-                existingProfilePicture = d.profilePicture || '';
+                document.getElementById('editSecurityQuestion').value = d.securityQuestion || '';
+                currentProfilePicture = d.profilePicture || '';
 
-                if (existingProfilePicture) {
-                    document.getElementById('profileAvatar').innerHTML = `<img src="${existingProfilePicture}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
-                }
+                // Render saved profile picture
+                renderAvatar(currentProfilePicture, d.displayName || d.username);
 
+                // Artist social links
                 if (user.role === 'artist' && user.artistProfileId) {
-                    const ad = await api(`/api/artists/${user.artistProfileId}`);
-                    existingBannerImage = ad.bannerImage || '';
-                    if (existingBannerImage) {
-                        const bannerEl = document.getElementById('artistBanner');
-                        bannerEl.style.display = 'block';
-                        bannerEl.style.backgroundImage = `url('${existingBannerImage}')`;
-                    }
-                    let socialHtml = '';
-                    if (ad.instagramLink) {
-                        socialHtml += `<a href="${ad.instagramLink}" target="_blank" style="color:var(--text-3);font-size:1.2rem;text-decoration:none;">📷</a>`;
-                        document.getElementById('editInstagram').value = ad.instagramLink;
-                    }
-                    if (ad.youtubeLink) {
-                        socialHtml += `<a href="${ad.youtubeLink}" target="_blank" style="color:var(--text-3);font-size:1.2rem;text-decoration:none;">📺</a>`;
-                        document.getElementById('editYoutube').value = ad.youtubeLink;
-                    }
-                    document.getElementById('socialLinksDisplay').innerHTML = socialHtml;
-                    document.getElementById('socialLinksGroup').style.display = 'block';
+                    try {
+                        const ad = await api(`/api/artists/${user.artistProfileId}`);
+                        let socialHtml = '';
+                        if (ad.instagramLink) {
+                            socialHtml += `<a href="${ad.instagramLink}" target="_blank" style="color:var(--text-3);font-size:1.2rem;text-decoration:none;">📷</a>`;
+                            document.getElementById('editInstagram').value = ad.instagramLink;
+                        }
+                        if (ad.youtubeLink) {
+                            socialHtml += `<a href="${ad.youtubeLink}" target="_blank" style="color:var(--text-3);font-size:1.2rem;text-decoration:none;">📺</a>`;
+                            document.getElementById('editYoutube').value = ad.youtubeLink;
+                        }
+                        document.getElementById('socialLinksDisplay').innerHTML = socialHtml;
+                        document.getElementById('socialLinksGroup').style.display = 'block';
+                    } catch (e) { }
                 }
             } catch (e) { }
         }
 
+        /* ── Profile picture upload with XHR for progress ───────── */
+        async function uploadProfilePicture(file) {
+            return new Promise((resolve, reject) => {
+                const bar = document.getElementById('picUploadBar');
+                const fill = document.getElementById('picUploadFill');
+                const status = document.getElementById('picUploadStatus');
+
+                bar.style.display = 'block';
+                fill.style.width = '0%';
+                status.textContent = 'Uploading…';
+
+                const formData = new FormData();
+                formData.append('file', file);
+
+                const xhr = new XMLHttpRequest();
+                xhr.open('POST', '/api/upload/profile-photo');
+                xhr.setRequestHeader('Authorization', 'Bearer ' + localStorage.getItem('token'));
+
+                xhr.upload.onprogress = (ev) => {
+                    if (ev.lengthComputable) {
+                        const pct = Math.round((ev.loaded / ev.total) * 100);
+                        fill.style.width = pct + '%';
+                        status.textContent = `Uploading… ${pct}%`;
+                    }
+                };
+
+                xhr.onload = () => {
+                    bar.style.display = 'none';
+                    status.textContent = '';
+                    if (xhr.status >= 200 && xhr.status < 300) {
+                        const data = JSON.parse(xhr.responseText);
+                        resolve(data.url); // server returns filename only
+                    } else {
+                        reject(new Error('Upload failed: ' + xhr.status));
+                    }
+                };
+
+                xhr.onerror = () => {
+                    bar.style.display = 'none';
+                    status.textContent = '';
+                    reject(new Error('Network error during upload'));
+                };
+
+                xhr.send(formData);
+            });
+        }
+
+        /* ── Save profile ───────────────────────────────────────── */
         async function updateProfile(e) {
             e.preventDefault();
             const user = getUser();
             const btn = document.getElementById('saveProfileBtn');
-            btn.disabled = true; btn.textContent = 'Saving...';
+            btn.disabled = true;
+            btn.textContent = 'Saving…';
 
             try {
-                // Upload profile picture if selected
-                const picFile = document.getElementById('editPictureFile');
-                if (picFile.files.length > 0) {
-                    const formData = new FormData();
-                    formData.append('file', picFile.files[0]);
-                    const upRes = await fetch('/api/upload/profile-photo', {
-                        method: 'POST', body: formData,
-                        headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
-                    });
-                    if (upRes.ok) { const ud = await upRes.json(); existingProfilePicture = ud.url; }
-                }
-
-                // Upload banner image if selected
-                const banFile = document.getElementById('editBannerFile');
-                if (banFile && banFile.files.length > 0) {
-                    const fd = new FormData();
-                    fd.append('file', banFile.files[0]);
-                    const banRes = await fetch('/api/upload/banner', {
-                        method: 'POST', body: fd,
-                        headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
-                    });
-                    if (banRes.ok) {
-                        const bd = await banRes.json();
-                        existingBannerImage = bd.url;
+                // 1. Upload profile picture if a new file was picked
+                if (pendingPicFile) {
+                    try {
+                        const filename = await uploadProfilePicture(pendingPicFile);
+                        currentProfilePicture = filename; // server returns bare filename
+                        pendingPicFile = null;
+                    } catch (upErr) {
+                        showToast('Picture upload failed: ' + upErr.message, 'error');
+                        btn.disabled = false;
+                        btn.textContent = 'Save Changes';
+                        return;
                     }
                 }
 
-                // Save user data
+                // 2. Save user data
+                const displayName = document.getElementById('editDisplayName').value.trim();
+                const bio = document.getElementById('editBio').value.trim();
                 const pw = document.getElementById('editPassword').value;
-                const bio = document.getElementById('editBio').value;
-                const displayName = document.getElementById('editDisplayName').value;
-                const updatedData = {
+                const currentPw = document.getElementById('editCurrentPassword').value;
+
+                // Validate: if new password given, current password is required
+                if (pw && !currentPw) {
+                    showToast('Please enter your current password to set a new one', 'error');
+                    btn.disabled = false;
+                    btn.textContent = 'Save Changes';
+                    return;
+                }
+
+                const payload = {
                     email: user.email,
                     username: user.username,
                     password: pw || '',
+                    currentPassword: currentPw || '',
                     role: user.role,
+                    fullName: displayName,
                     displayName: displayName,
                     bio: bio,
-                    profilePicture: existingProfilePicture
+                    profilePicture: currentProfilePicture,
+                    securityQuestion: document.getElementById('editSecurityQuestion').value.trim() || null,
+                    securityAnswer: document.getElementById('editSecurityAnswer').value.trim() || null
                 };
 
-                await api(`/api/users/${user.userId}`, 'PUT', updatedData);
+                await api(`/api/users/${user.userId}`, 'PUT', payload);
 
-                // Save banner and socials to artist profile if artist
+                // 3. Save artist socials (no banner)
                 if (user.role === 'artist' && user.artistProfileId) {
                     try {
-                        const artistUpdatePayload = { userId: user.userId };
-                        if (existingBannerImage) artistUpdatePayload.bannerImage = existingBannerImage;
-
-                        const insta = document.getElementById('editInstagram');
-                        if (insta && insta.value !== undefined) artistUpdatePayload.instagramLink = insta.value.trim();
-
-                        const yt = document.getElementById('editYoutube');
-                        if (yt && yt.value !== undefined) artistUpdatePayload.youtubeLink = yt.value.trim();
-
-                        await api(`/api/artists/${user.artistProfileId}`, 'PUT', artistUpdatePayload);
-                    } catch (e) { console.error('Artist profile save error:', e); }
+                        const artistPayload = { userId: user.userId };
+                        const instaEl = document.getElementById('editInstagram');
+                        const ytEl = document.getElementById('editYoutube');
+                        if (instaEl) artistPayload.instagramLink = instaEl.value.trim();
+                        if (ytEl) artistPayload.youtubeLink = ytEl.value.trim();
+                        await api(`/api/artists/${user.artistProfileId}`, 'PUT', artistPayload);
+                    } catch (err) { console.error('Artist save error:', err); }
                 }
 
-                // Update page UI immediately
+                // 4. Update UI immediately
                 document.getElementById('profileName').textContent = displayName || user.username;
                 document.getElementById('profileBioDisplay').textContent = bio;
+                renderAvatar(currentProfilePicture, displayName || user.username);
+                renderNavAvatar(currentProfilePicture, displayName || user.username);
 
-                // Update profile avatar (page)
-                if (existingProfilePicture) {
-                    document.getElementById('profileAvatar').innerHTML = `<img src="${existingProfilePicture}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
-                } else {
-                    document.getElementById('profileAvatar').textContent = (displayName || user.username || 'U').charAt(0).toUpperCase();
-                }
-
-                // Update navbar avatar
-                const navAvatar = document.getElementById('userAvatar');
-                if (navAvatar) {
-                    if (existingProfilePicture) {
-                        navAvatar.innerHTML = `<img src="${existingProfilePicture}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
-                    } else {
-                        navAvatar.textContent = (displayName || user.username || 'U').charAt(0).toUpperCase();
-                    }
-                }
-
-                // Update banner display
-                if (existingBannerImage) {
-                    const bannerEl = document.getElementById('artistBanner');
-                    bannerEl.style.display = 'block';
-                    bannerEl.style.backgroundImage = `url('${existingBannerImage}')`;
-                }
-
-                // Persist to localStorage so all pages get the updated info
-                localStorage.setItem('user', JSON.stringify(Object.assign({}, user, {
+                // 5. Persist to localStorage so all pages see the updated picture
+                const updatedUser = Object.assign({}, user, {
                     displayName: displayName,
-                    profilePicture: existingProfilePicture,
+                    profilePicture: currentProfilePicture,
                     bio: bio
-                })));
+                });
+                localStorage.setItem('user', JSON.stringify(updatedUser));
 
                 document.getElementById('editPassword').value = '';
-                showToast('Updated successfully!');
-            } catch (e) { showToast('Failed to save', 'error'); }
-            btn.disabled = false; btn.textContent = 'Save Changes';
+                document.getElementById('editCurrentPassword').value = '';
+                showToast('Profile updated successfully!', 'success');
+
+            } catch (err) {
+                showToast('Failed to save profile', 'error');
+                console.error(err);
+            }
+
+            btn.disabled = false;
+            btn.textContent = 'Save Changes';
         }
 
         async function deleteAccount() {
@@ -352,12 +520,6 @@
                 alert('Account deleted.');
                 logout();
             } catch (e) { showToast('Failed to delete account', 'error'); }
-        }
-
-        function logout() {
-            localStorage.removeItem('user');
-            localStorage.removeItem('token');
-            window.location.href = '/login';
         }
     </script>
 </body>

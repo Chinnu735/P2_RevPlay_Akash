@@ -5,8 +5,10 @@ import com.revplay.app.entity.*;
 import com.revplay.app.exception.*;
 import com.revplay.app.mapper.PlaylistSongMapper;
 import com.revplay.app.repository.*;
-import com.revplay.app.service.PlaylistSongService;
+import com.revplay.app.service.IPlaylistSongService;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -15,15 +17,19 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
-public class PlaylistSongServiceImpl implements PlaylistSongService {
+@Transactional(readOnly = true)
+public class PlaylistSongServiceImpl implements IPlaylistSongService {
+    private static final Logger log = LoggerFactory.getLogger(PlaylistSongServiceImpl.class);
 
-    private final PlaylistSongRepository playlistSongRepository;
-    private final PlaylistRepository playlistRepository;
-    private final SongRepository songRepository;
+    private final IPlaylistSongRepository playlistSongRepository;
+    private final IPlaylistRepository playlistRepository;
+    private final ISongRepository songRepository;
     private final PlaylistSongMapper mapper;
 
     @Override
+    @Transactional
     public PlaylistSongResponse addSongToPlaylist(PlaylistSongRequest request) {
+        log.info("Adding song {} to playlist {}", request.getSongId(), request.getPlaylistId());
         if (playlistSongRepository.existsByPlaylistIdAndSongId(request.getPlaylistId(), request.getSongId())) {
             throw new DuplicateResourceException("Song already in playlist");
         }
@@ -50,6 +56,7 @@ public class PlaylistSongServiceImpl implements PlaylistSongService {
     @Override
     @Transactional
     public void removeSongFromPlaylist(Long playlistId, Long songId) {
+        log.info("Removing song {} from playlist {}", songId, playlistId);
         PlaylistSongId id = new PlaylistSongId(playlistId, songId);
         if (!playlistSongRepository.existsById(id)) {
             throw new ResourceNotFoundException("Song not found in playlist");

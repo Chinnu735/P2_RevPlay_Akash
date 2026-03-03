@@ -3,9 +3,9 @@ package com.revplay.app.rest;
 import com.revplay.app.entity.ArtistProfile;
 import com.revplay.app.entity.Genre;
 import com.revplay.app.entity.User;
-import com.revplay.app.repository.ArtistProfileRepository;
-import com.revplay.app.repository.GenreRepository;
-import com.revplay.app.repository.UserRepository;
+import com.revplay.app.repository.IArtistProfileRepository;
+import com.revplay.app.repository.IGenreRepository;
+import com.revplay.app.repository.IUserRepository;
 import com.revplay.app.config.JwtService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -18,9 +18,9 @@ import java.util.Optional;
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
 public class AuthController {
-    private final UserRepository userRepository;
-    private final ArtistProfileRepository artistProfileRepository;
-    private final GenreRepository genreRepository;
+    private final IUserRepository userRepository;
+    private final IArtistProfileRepository artistProfileRepository;
+    private final IGenreRepository genreRepository;
     private final JwtService jwtService;
 
     // ── LOGIN (supports email OR username) ───────────────────────────────
@@ -50,7 +50,7 @@ public class AuthController {
                     .body(AuthResponse.failure("Invalid credentials"));
         }
 
-        if (user.getIsActive() != null && user.getIsActive() == 0) {
+        if (user.getIsActive() == 0) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
                     .body(AuthResponse.failure("Account is deactivated"));
         }
@@ -69,9 +69,9 @@ public class AuthController {
                 .userId(user.getId())
                 .email(user.getEmail())
                 .username(user.getUsername())
-                .role(user.getRole())
                 .displayName(user.getDisplayName())
                 .profilePicture(user.getProfilePicture())
+                .role(user.getRole())
                 .token(token)
                 .artistProfileId(artistProfileId)
                 .message("Login successful")
@@ -101,10 +101,9 @@ public class AuthController {
         user.setPassword(request.getPassword());
         user.setUsername(username);
         user.setRole("user");
-        user.setIsActive(1);
-        user.setDisplayName(username);
         user.setSecurityQuestion(request.getSecurityQuestion());
         user.setSecurityAnswer(request.getSecurityAnswer());
+        user.setIsActive(1);
 
         User saved = userRepository.save(user);
 
@@ -112,8 +111,7 @@ public class AuthController {
         String token = jwtService.generateToken(saved.getId(), saved.getRole());
 
         AuthResponse authResponse = AuthResponse.success(
-                saved.getId(), saved.getEmail(), saved.getUsername(), saved.getRole(),
-                saved.getDisplayName(), saved.getProfilePicture(), token);
+                saved.getId(), saved.getEmail(), saved.getUsername(), saved.getRole(), token);
 
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.created(authResponse));
@@ -144,10 +142,9 @@ public class AuthController {
         user.setPassword(request.getPassword());
         user.setUsername(username);
         user.setRole("artist");
-        user.setIsActive(1);
-        user.setDisplayName(request.getArtistName() != null ? request.getArtistName() : username);
         user.setSecurityQuestion(request.getSecurityQuestion());
         user.setSecurityAnswer(request.getSecurityAnswer());
+        user.setIsActive(1);
         User savedUser = userRepository.save(user);
 
         // Create artist profile
@@ -155,10 +152,7 @@ public class AuthController {
         profile.setUser(savedUser);
         profile.setArtistName(request.getArtistName() != null ? request.getArtistName() : username);
         profile.setInstagramLink(request.getInstagramLink());
-        profile.setTwitterLink(request.getTwitterLink());
         profile.setYoutubeLink(request.getYoutubeLink());
-        profile.setSpotifyLink(request.getSpotifyLink());
-        profile.setWebsiteLink(request.getWebsiteLink());
         profile.setBannerImage(request.getBannerImage());
 
         if (request.getGenreId() != null) {
@@ -176,8 +170,6 @@ public class AuthController {
                 .email(savedUser.getEmail())
                 .username(savedUser.getUsername())
                 .role(savedUser.getRole())
-                .displayName(savedUser.getDisplayName())
-                .profilePicture(savedUser.getProfilePicture())
                 .token(token)
                 .artistProfileId(savedProfile.getId())
                 .message("Artist registration successful")

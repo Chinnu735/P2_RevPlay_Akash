@@ -1,5 +1,8 @@
 package com.revplay.app.config;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
@@ -12,6 +15,7 @@ import java.util.function.Function;
 
 @Service
 public class JwtService {
+    private static final Logger log = LoggerFactory.getLogger(JwtService.class);
 
     // Using a securely generated 256-bit key for HS256
     private final Key key = Keys.secretKeyFor(SignatureAlgorithm.HS256);
@@ -20,6 +24,7 @@ public class JwtService {
     private final long JWT_EXPIRATION = 86400000;
 
     public String generateToken(Long userId, String role) {
+        log.debug("Generating token for userId: {}, role: {}", userId, role);
         return Jwts.builder()
                 .setSubject(String.valueOf(userId))
                 .claim("role", role)
