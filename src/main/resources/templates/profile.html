@@ -306,6 +306,7 @@
             el.classList.add('active');
             document.getElementById('tabProfile').classList.toggle('hidden', tab !== 'profile');
             document.getElementById('tabHistory').classList.toggle('hidden', tab !== 'history');
+            if (tab === 'history') loadProfileHistory();
         }
 
         async function loadProfileHistory() {
@@ -313,7 +314,14 @@
             const grid = document.getElementById('profileHistoryList');
             try {
                 const data = await api(`/api/listening-history/user/${user.userId}/recent?limit=25`);
-                grid.innerHTML = data && data.length ? data.map(h => ui.card(h, 'song')).join('') : ui.empty('🎶', 'No history yet.');
+                grid.innerHTML = data && data.length
+                    ? data.map(h => ui.card({
+                        id: h.songId,
+                        title: h.songTitle,
+                        artistName: h.artistName,
+                        coverImage: h.coverImage
+                    }, 'song')).join('')
+                    : ui.empty('🎶', 'No history yet.');
             } catch (e) { grid.innerHTML = ui.empty('⚠️', 'Failed to load history.'); }
         }
 
@@ -321,10 +329,7 @@
             const user = getUser();
             if (!user || !confirm('Clear all listening history?')) return;
             try {
-                await fetch(`/api/listening-history/user/${user.userId}`, {
-                    method: 'DELETE',
-                    headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
-                });
+                await api(`/api/listening-history/user/${user.userId}`, 'DELETE');
                 loadProfileHistory();
                 showToast('History cleared');
             } catch (e) { showToast('Failed', 'error'); }
